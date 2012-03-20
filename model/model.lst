@@ -1,0 +1,795 @@
+GAMS Rev 234  WIN-VS8 23.4.3 x86/MS Windows                                                        03/20/12 11:47:58 Page 1
+China model version 1
+C o m p i l a t i o n
+
+
+   2   
+   3  *-------------------------------------------------------------------
+   4  *       Read SAM data:
+   5  *-------------------------------------------------------------------
+   6   
+   7  set     i_   SAM rows and colums indices   /
+   8          1*30    Industries,
+   9          31*60   Commodities,
+  10          61      Labor,
+  11          62      Capital,
+  12          63      Household,
+  13          64      Central Government,
+  14          65      Local Government,
+  15          66      Production tax,
+  16          67      Commodity tax,
+  17          68      Factor tax,
+  18          69      Income tax,
+  19          70      Domestic trade,
+  20          71      Foreign trade,
+  21          72      Investment,
+  22          73      Inventory,
+  23          74      Trade margin/;
+  24   
+  25  alias (i_,j_);
+  26   
+  27  set      r China provinces      /BEJ,TAJ,HEB,SHX,NMG,LIA,JIL,HLJ,SHH,JSU,ZHJ,ANH,FUJ,JXI,SHD,HEN,HUB,HUN,GUD,GXI,HAI,
+      CHQ,SIC,GZH,YUN,SHA,GAN,NXA,QIH,XIN/;
+  28   
+  29  parameter sam(r,i_,j_)  SAM data;
+  30   
+GDXIN   c:\Users\DaZHANG\Chinamodel\model\sam5.gdx
+--- LOAD  sam = 22:sam5
+  33   
+  34  *-------------------------------------------------------------------
+  35  *       RELABEL SETS:
+  36  *-------------------------------------------------------------------
+  37   
+  38  SET     f    Factors /cap,lab,res/
+  39          g    Goods and final demands/
+  40          AGR     "Crop cultivation,Forestry,Livestock and livestock products and Fishery"
+  41          COAL    "Coal mining and processing"
+  42          OIL     "Crude petroleum products"
+  43          MM      "Metal minerals mining"
+  44          NMM     "Non-metal minerals and other mining"
+  45          FBT     "Food, baverage and tobacco"
+  46          TXT     "Textiles"
+  47          CLO     "Wearing apparel, leather, furs, down and related products"
+  48          LOG     "Logging and transport of timber and furniture"
+  49          PAP     "Paper, printing, record medium reproduction, cultural goods, toys, sporting and recreation products"
+  50          ROIL    "Petroleum refining, coking and nuclear fuels"
+  51          CHE     "Chemical engineering"
+  52          NMP     "Non-metallic mineral products"
+  53          MSP     "Metal smelting and processing"
+  54          MP      "Metal product"
+  55          GSM     "General and special  industrial machinery and equipment"
+  56          TME     "Transport machinery and equipment"
+  57          EME     "Electric machinery and equipment"
+  58          CCE     "Communicatoin, computer and other electronic machinery and equipment"
+  59          IM      "Instruments, meters ,other measuring equipment and cultural and office equipment"
+  60          AC      "Arts and crafts products and other manufacturing  products"
+  61          WAS     "Scrap and waste"
+  62          ELEH    "Electricity production and supply, and steam and hot water production and supply"
+  63          FG      "Gas production and supply"
+  64          WT      "Water production and supply"
+  65          CON     "Construction"
+  66          TP      "Transportation and warehousing, Post"
+  67          WRHR    "Wholesale and retail trade, Hotels and restraunts"
+  68          OTH     "Other service industry"
+  69          NG      "natural gas products"
+  70          c       "Private consumption"
+  71          cg      "Central Government"
+  72          lg      "Local Government"
+  73          i       "Investment"
+GAMS Rev 234  WIN-VS8 23.4.3 x86/MS Windows                                                        03/20/12 11:47:58 Page 2
+China model version 1
+C o m p i l a t i o n
+
+
+  74          /
+  75          i(g)    "Goods and sectors" /
+  76          AGR     "Crop cultivation,Forestry,Livestock and livestock products and Fishery"
+  77          COAL    "Coal mining and processing"
+  78          OIL     "Crude petroleum products"
+  79          MM      "Metal minerals mining"
+  80          NMM     "Non-metal minerals and other mining"
+  81          FBT     "Food, baverage and tobacco"
+  82          TXT     "Textiles"
+  83          CLO     "Wearing apparel, leather, furs, down and related products"
+  84          LOG     "Logging and transport of timber and furniture"
+  85          PAP     "Paper, printing, record medium reproduction, cultural goods, toys, sporting and recreation products"
+  86          ROIL    "Petroleum refining, coking and nuclear fuels"
+  87          CHE     "Chemical engineering"
+  88          NMP     "Non-metallic mineral products"
+  89          MSP     "Metal smelting and processing"
+  90          MP      "Metal product"
+  91          GSM     "General and special  industrial machinery and equipment"
+  92          TME     "Transport machinery and equipment"
+  93          EME     "Electric machinery and equipment"
+  94          CCE     "Communicatoin, computer and other electronic machinery and equipment"
+  95          IM      "Instruments, meters ,other measuring equipment and cultural and office equipment"
+  96          AC      "Arts and crafts products and other manufacturing  products"
+  97          WAS     "Scrap and waste"
+  98          ELEH    "Electricity production and supply, and steam and hot water production and supply"
+  99          FG      "Gas production and supply"
+ 100          WT      "Water production and supply"
+ 101          CON     "Construction"
+ 102          TP      "Transportation and warehousing, Post"
+ 103          WRHR    "Wholesale and retail trade, Hotels and restraunts"
+ 104          OTH     "Other service industry"
+ 105          NG      "Natural gas products"
+ 106          /
+ 107          ;
+ 108   
+ 109  alias (i,j) , (g,gg) , (r,rr);
+ 110   
+ 111  *       Map i set to new subsets:
+ 112   
+ 113  set     mapf(i_,f) /
+ 114          61.lab
+ 115          62.cap/,
+ 116   
+ 117          mapic(i_,i) /
+ 118          1.AGR
+ 119          2.COAL
+ 120          3.OIL
+ 121          4.MM
+ 122          5.NMM
+ 123          6.FBT
+ 124          7.TXT
+ 125          8.CLO
+ 126          9.LOG
+ 127          10.PAP
+ 128          11.ROIL
+ 129          12.CHE
+ 130          13.NMP
+ 131          14.MSP
+ 132          15.MP
+ 133          16.GSM
+ 134          17.TME
+ 135          18.EME
+ 136          19.CCE
+ 137          20.IM
+ 138          21.AC
+ 139          22.WAS
+ 140          23.ELEH
+ 141          24.FG
+ 142          25.WT
+ 143          26.CON
+ 144          27.TP
+ 145          28.WRHR
+ 146          29.OTH
+GAMS Rev 234  WIN-VS8 23.4.3 x86/MS Windows                                                        03/20/12 11:47:58 Page 3
+China model version 1
+C o m p i l a t i o n
+
+
+ 147          30.NG
+ 148          /
+ 149   
+ 150          mapjc(i_,i) /
+ 151          31.AGR
+ 152          32.COAL
+ 153          33.OIL
+ 154          34.MM
+ 155          35.NMM
+ 156          36.FBT
+ 157          37.TXT
+ 158          38.CLO
+ 159          39.LOG
+ 160          40.PAP
+ 161          41.ROIL
+ 162          42.CHE
+ 163          43.NMP
+ 164          44.MSP
+ 165          45.MP
+ 166          46.GSM
+ 167          47.TME
+ 168          48.EME
+ 169          49.CCE
+ 170          50.IM
+ 171          51.AC
+ 172          52.WAS
+ 173          53.ELEH
+ 174          54.FG
+ 175          55.WT
+ 176          56.CON
+ 177          57.TP
+ 178          58.WRHR
+ 179          59.OTH
+ 180          60.NG
+ 181          /
+ 182   
+ 183          gov(g) Government agents /
+ 184          cg Central government
+ 185          lg Local government
+ 186          /
+ 187          maph(i_,g) /63.c/
+ 188          mapg(i_,gov) /64.cg,65.lg/
+ 189          mapinv(i_,g) /72.i/
+ 190  ;
+ 191   
+ 192  alias (gov,govv);
+ 193   
+ 194  set     trd Domestic and foreign markets /dtrd,ftrd/
+ 195          tb  Trade surplus or deficit /s,d/;
+ 196   
+ 197  *-------------------------------------------------------------------
+ 198  *       LABEL DATA:
+ 199  *-------------------------------------------------------------------
+ 200   
+ 201  parameter
+ 202          vom(g,r)       "Aggregate output"
+ 203          vom_(i,j_,r)   "Aggregate output"
+ 204   
+ 205          vfm(f,g,r)     "Endowments "
+ 206          evom(f,r)      "Factor supply"
+ 207   
+ 208          vafm(i,g,r)    "Intermediate demand for Armington goods,"
+ 209          vafm_(i,j_,r)  "Intermediate demand for Armington goods"
+ 210  *       no data on vdfm and vifm
+ 211  *       vdfm(i,g,rs)    Intermediates - firms' domestic purchases at market prices,
+ 212  *       vifm(i,g,rs,trd)        Intermediates - firms' imports at market prices (ADDED DIMENSION),
+ 213          vxm(i,r,trd)   "Domestic and foreign exports "
+ 214          vim(i,r,trd)   "Aggregate imports"
+ 215          vtax(g,r)      "Output tax payments"
+ 216          vsub(g,r)      "Output subsidy payments"
+ 217          vtrdm(g,r)     "Trade margins"
+ 218   
+ 219          vinvta(i,r)     "Inventory additions (column)"
+GAMS Rev 234  WIN-VS8 23.4.3 x86/MS Windows                                                        03/20/12 11:47:58 Page 4
+China model version 1
+C o m p i l a t i o n
+
+
+ 220          vinvtd(i,r)     "Inventory deletions (row)"
+ 221          vtrnm(i,r)      "Transportation margins"
+ 222   
+ 223          vdepr(f,r)              "Depreciation of capital"
+ 224          vtrdbal(r,trd,tb)       "Balance of payments surplus or deficit"
+ 225   
+ 226          vinvs(r,g)              "Investment demand by agent"
+ 227          vinvsn(r,g)             "Negative demand to close investement account (need to revisit)"
+ 228          vinvch(r)               "Inventory change in household account"
+ 229          vttrn(r,g,gg)           "Transfer payments between agents (from-to)"
+ 230   
+ 231          vtaxrev(r,g)            "Tax revenue for government agent"
+ 232  ;
+ 233   
+ 234   
+ 235  *       Aggregate output:
+ 236  loop(i$(ord(i) le 30),
+ 237  loop(i_$(ord(i_) eq ord(i)),
+ 238  loop(j_$(ord(j_) eq 30+ord(i)),
+ 239  *loop(i_$(ord(i_) le 30),
+ 240  *loop(j_$(ord(j_) eq 30+ord(i_)),
+ 241  *vom_(i,j_,r) = sum(mapic(i_,i), sam(r,i_,j_));
+ 242  vom(i,r) = sam(r,i_,j_);
+ 243  );
+ 244  );
+ 245  );
+ 246  *vom(i,r) = sum(j_,vom_(i,j_,r));
+ 247  display vom;
+ 248   
+ 249  *       Factor payments by sector:
+ 250  vfm(f,i,r) = sum(mapf(j_,f),sum(mapic(i_,i),sam(r,j_,i_)));
+ 251  display vfm;
+ 252   
+ 253  *       Intermediate demands for Armington goods:
+ 254  vafm(j,i,r) =  sum((mapic(i_,i),mapjc(j_,j)),sam(r,j_,i_));
+ 255  vafm(j,"c",r) =  sum((maph(i_,g),mapjc(j_,j)),sam(r,j_,i_));
+ 256  vafm(j,"i",r) =  sum((mapinv(i_,g),mapjc(j_,j)),sam(r,j_,i_));
+ 257  vafm(j,gov,r) =  sum((mapg(i_,gov),mapjc(j_,j)),sam(r,j_,i_));
+ 258   
+ 259  *       Domestic and foreign exports and immports:
+ 260  vxm(i,r,"dtrd")  = sum(mapjc(i_,i),sam(r,i_,"70"));
+ 261  vxm(i,r,"ftrd")  = sum(mapjc(i_,i),sam(r,i_,"71"));
+ 262   
+ 263  vim(i,r,"dtrd")  = sum(mapjc(i_,i),sam(r,"70",i_));
+ 264  vim(i,r,"ftrd")  = sum(mapjc(i_,i),sam(r,"71",i_));
+ 265   
+ 266  *       Output/subsidy taxes:
+ 267  vtax(i,r) = sum(mapic(i_,i),sam(r,"66",i_));
+ 268  vsub(i,r) = sum(mapic(i_,i),sam(r,i_,"66"));
+ 269   
+ 270  *       Trade margins:
+ 271  vtrdm(i,r) = sum(mapjc(i_,i),sam(r,"74",i_));
+ 272   
+ 273  *       Inventory additions and deletions:
+ 274  vinvtd(i,r) = sum(mapjc(i_,i),sam(r,"73",i_));
+ 275  vinvta(i,r)  = sum(mapjc(i_,i),sam(r,i_,"73"));
+ 276   
+ 277  *       Transport margins:
+ 278  vtrnm(i,r) = sum(mapjc(i_,i),sam(r,i_,"74"));
+ 279   
+ 280  *       Earnings from factor supply:
+ 281  evom(f,r) = sum(mapf(j_,f),sam(r,"63",j_));
+ 282  vdepr(f,r) = sum(mapf(j_,f),sam(r,"72",j_));
+ 283   
+ 284  *       Balance of payments surplus:
+ 285  vtrdbal(r,"dtrd","s") = sam(r,"70","63");
+ 286  vtrdbal(r,"ftrd","s") = sam(r,"71","63");
+ 287  vtrdbal(r,"dtrd","d") = sam(r,"63","70");
+ 288  vtrdbal(r,"ftrd","d") = sam(r,"63","71");
+ 289   
+ 290  *       Investment demand by agent:
+ 291  vinvs(r,"c") = sam(r,"72","63");
+ 292  vinvs(r,"cg") = sam(r,"72","64");
+GAMS Rev 234  WIN-VS8 23.4.3 x86/MS Windows                                                        03/20/12 11:47:58 Page 5
+China model version 1
+C o m p i l a t i o n
+
+
+ 293   
+ 294  *       Inventory change in household account:
+ 295  vinvch(r) = sam(r,"73","63");
+ 296   
+ 297  *       Transfer payments;
+ 298  vttrn(r,"lg","cg") = sam(r,"64","65");
+ 299  vttrn(r,"cg","lg") = sam(r,"65","64");
+ 300  vttrn(r,"lg","c") = sam(r,"63","65");
+ 301   
+ 302  *       Tax revenue:
+ 303  vtaxrev(r,"lg") = sam(r,"65","66");
+ 304   
+ 305  *       Negative demand to close investment account (need to revisit!):
+ 306  vinvsn(r,"cg") =  sam(r,"64","71");
+ 307   
+ 308   
+ 309  *       Compute additional parameter to define model:
+ 310  vom("c",r) = sum(j,vafm(j,"c",r));
+ 311  vom(gov,r) = sum(j,vafm(j,gov,r));
+ 312  vom("i",r) = sum(j,vafm(j,"i",r));
+ 313   
+ 314  parameter
+ 315          vam     Armginton production;
+ 316   
+ 317  vam(i,r) = sum(trd,vim(i,r,trd)) + vom(i,r);
+ 318   
+ 319   
+ 320  *       Check sparsity:
+ 321   
+ 322  parameter total_supply,intermediate_demand;
+ 323  total_supply(i,r) = vom(i,r) + sum(trd,vim(i,r,trd)) + vinvtd(i,r);
+ 324  intermediate_demand(j,i,r) = vafm(j,i,r);
+ 325   
+ 326  parameter chk_vafm;
+ 327  *chk_vafm(i,g,r) = yes$(vafm(i,g,r) and (not sum(trd,vim(i,r,trd))));
+ 328  chk_vafm(i,j,r) = yes$(intermediate_demand(i,j,r) and (not total_supply(i,r)));
+ 329   
+ 330  display chk_vafm;
+EXIT c:\Users\DaZHANG\Chinamodel\model\model.gms
+GAMS Rev 234  WIN-VS8 23.4.3 x86/MS Windows                                                        03/20/12 11:47:58 Page 6
+China model version 1
+Include File Summary
+
+
+   SEQ   GLOBAL TYPE      PARENT   LOCAL  FILENAME
+
+     1        1 INPUT          0       0  c:\Users\DaZHANG\Chinamodel\model\model.gms
+     2       31 GDXIN          1      31  c:\Users\DaZHANG\Chinamodel\model\sam5.gdx
+     3      331 EXIT           1     331  c:\Users\DaZHANG\Chinamodel\model\model.gms
+
+
+COMPILATION TIME     =        0.031 SECONDS      3 Mb  WIN234-234 May 21, 2010
+GAMS Rev 234  WIN-VS8 23.4.3 x86/MS Windows                                                        03/20/12 11:47:58 Page 7
+China model version 1
+E x e c u t i o n
+
+
+----    247 PARAMETER vom  Aggregate output
+
+             BEJ         TAJ         HEB         SHX         NMG         LIA         JIL         HLJ         SHH
+
+AGR       25.973      22.264     304.234      49.314     125.337     210.581     140.092     165.655      26.007
+COAL       4.403       3.540      40.260     215.616      94.711      18.381      15.746      37.174
+OIL       10.621      11.914      24.141                   4.402      25.267      10.083      30.401       5.223
+MM                                95.404       7.230      45.948      44.012      11.769
+NMM                                                       16.880       9.120       5.820
+FBT       49.495      37.724     210.013      25.749     111.652     152.599      64.915     102.292     100.847
+TXT        6.271       6.875     102.924                  25.562      23.324                              39.306
+CLO        9.258       8.557      78.134       1.296       3.691      43.773       1.359       6.351      61.246
+LOG                    5.230      94.116       1.925      10.036      37.457      23.163      13.173      32.752
+PAP       19.934      11.198      54.880       6.940       7.295      21.618       4.494      11.812      57.633
+ROIL      27.480     140.621      69.247      12.984      14.903     162.056      44.948     309.666
+CHE       92.496      94.974     251.692      58.659      49.444     192.919     126.811      72.280     342.510
+NMP       27.442      10.430     189.155      48.580      36.814      92.090      24.077      13.907      48.774
+MSP       51.338     182.955     674.384     278.024     174.663     305.987      36.356      25.828     230.997
+MP        22.301      34.927      87.950      28.695       2.513      58.025       9.681      10.636      94.958
+GSM       85.503      61.778     170.165      39.832      17.313     212.147      22.155      69.452     283.169
+TME       96.564     104.265      71.450       8.771      19.228     160.274     260.210      31.082     270.493
+EME       31.579      57.745      79.998       7.453       4.208      80.432       4.489      18.732     179.413
+CCE      238.698     193.602      10.543       0.360       7.319      57.675       3.376       2.204     579.480
+IM        21.643      13.242                   2.337                  11.770                   5.281      34.175
+AC         3.990                                                                   0.392
+WAS                   11.673
+ELEH      16.394      16.058      60.321      89.228      26.353      82.477      15.219      26.593      29.688
+FG                     3.996       2.679       2.891      32.974       1.009       0.679       5.303       1.518
+CON      198.888     149.845     221.425     151.769     128.445     224.147     122.119     170.722     239.993
+TP       140.810     106.462     249.439      62.600     104.262     124.165      56.531      76.170     282.146
+WRHR     219.760      90.684     140.094      72.677      96.138     219.783      96.921     107.780     230.934
+OTH     1169.749     192.685     509.499     182.549     197.501     376.504     206.950     245.727     976.389
+NG                    13.190      29.342       0.007      28.398      12.756      12.385      35.296
+
+   +         JSU         ZHJ         ANH         FUJ         JXI         SHD         HEN         HUB         HUN
+
+AGR      304.543     159.305     205.638     166.210     141.332     462.333     382.377     227.754     260.962
+COAL      36.888      18.637      25.054      14.626       9.055      69.512      67.999       6.137      24.666
+OIL       10.999                                                       7.146      16.218       7.797
+MM         9.702                  19.140                  26.440     151.613      76.177      12.171      30.720
+NMM                                            9.312      14.593                  62.107      17.296      14.577
+FBT      226.421     166.872     109.584     123.170      61.038     777.942     426.262     174.740     134.853
+TXT      497.627     484.329      32.202      85.990      32.641     368.582      95.412      77.944      28.818
+CLO      235.519     284.083      18.603     187.060      27.714     141.795      68.053      51.571      21.282
+LOG       78.605     122.690      17.958      41.043      34.257      95.725     100.889      22.854      27.566
+PAP      139.046     167.679      19.443      58.791      45.221     211.059      77.702      36.713      38.328
+ROIL      79.679                  12.174       0.982       0.013     207.308      33.499      27.497       4.122
+CHE      949.540     650.901     119.294     175.236     115.165     785.036     253.929     124.584     123.035
+NMP      151.538     130.336      45.869     108.130      32.660     309.495     301.463      67.761      52.999
+MSP      763.633     287.278     157.846      95.446     147.101     542.705     351.265      99.427     194.989
+MP       233.568     203.373      27.895      38.571      13.147     136.959      56.355      49.199      25.457
+GSM      544.147     441.456      66.305      71.386      40.067     503.779     209.677      80.034      90.687
+TME      266.338     266.659      75.051      57.632      20.849     232.867      73.487      90.661      42.140
+EME      447.712     308.505     102.430      55.088      44.012     262.868      53.346      28.618      36.028
+CCE      842.290     200.233      12.665     167.008      25.051     207.858      13.219      39.894      15.725
+IM        85.612      42.677       6.046      17.202       8.485
+AC                    87.420       3.782      42.168                  53.468      67.435
+WAS       56.547      25.822      14.092                                                                  11.943
+ELEH      55.592      45.098      16.294      13.346      13.645      86.182      38.453      23.392      17.876
+FG                                             0.035       0.445       2.363       3.397       2.929       0.253
+CON      488.988     483.030     167.063     175.435     179.692     396.247     243.114     192.352     190.182
+TP       226.518     179.414     103.301     122.399      66.628     302.939     183.418     100.142      83.224
+WRHR     396.898     332.934     104.075     144.976     117.021     352.381     237.395     152.902     133.275
+OTH      977.994     837.142     315.528     333.852     170.028     872.956     437.632     387.233     388.756
+NG        43.005                                                      21.837      30.722      22.554
+
+   +         GUD         GXI         HAI         CHQ         SIC         GZH         YUN         SHA         GAN
+
+AGR      280.656     200.942      54.031      70.801     322.277      68.068     131.641      97.698      63.557
+COAL                   8.267                  23.773      43.498      26.922      29.086      53.493      11.159
+OIL       21.742                               0.231                                           0.439       7.615
+MM        17.088      19.613       2.829       3.019      18.167       6.730      17.226      22.934      18.299
+NMM                                            2.886       8.361       5.037                   1.942
+GAMS Rev 234  WIN-VS8 23.4.3 x86/MS Windows                                                        03/20/12 11:47:58 Page 8
+China model version 1
+E x e c u t i o n
+
+
+        247 PARAMETER vom  Aggregate output
+
+   +         GUD         GXI         HAI         CHQ         SIC         GZH         YUN         SHA         GAN
+
+FBT      290.308     115.839      12.499      42.129     208.848      33.794     113.027      45.156      24.496
+TXT      209.288       8.269                  12.665      32.478                               7.269
+CLO      329.048       4.830                   5.482      18.526                                           1.559
+LOG      141.220      15.323       2.314                  18.625       2.012                   2.115
+PAP      331.065      19.388       7.950       9.456      28.991       2.841      10.540      12.619
+ROIL     133.811       6.658                   2.179       9.957       1.744       2.863     133.832      48.305
+CHE      731.180      65.928      14.609      56.008     152.395      46.067      53.528      54.644      25.569
+NMP      236.828      33.427       4.543      29.007      57.408      12.008      13.996      14.777      15.210
+MSP      317.338     140.883       2.727      77.470     158.275      56.914     165.384      66.699     109.588
+MP       362.371       8.889       7.985      10.242      23.225       6.387       3.229      10.625
+GSM      278.573      36.195       6.467      37.782     104.591       9.275      15.198      50.233      11.744
+TME      335.622      70.467      11.533     205.353      64.148       9.940       9.651      65.217
+EME      726.064      17.063       2.181      29.225      45.198       5.730       6.998      25.801       5.573
+CCE     1557.492       8.559                   8.234      55.346       2.358       1.002      18.102       2.331
+IM       154.319                               9.251      12.891                               8.528
+AC       114.864
+ELEH      52.114      11.186       9.986       8.864      19.329      13.495      14.885      29.021      24.708
+FG        18.764       0.054                  35.597      85.321                              46.215
+CON      433.886     144.034      42.250     147.719     273.803      73.320     139.148     176.865      83.649
+TP       270.569      64.240      27.970      52.077     106.282      34.918      43.497      56.526      33.321
+WRHR     522.343      92.254      22.949      81.073     203.039      44.246      72.889      79.227      36.821
+OTH     1418.209     206.624      46.565     161.520     413.406     116.307     214.799     192.341     106.383
+NG        40.092                               5.110      19.206                              13.969      11.536
+
+   +         NXA         QIH         XIN
+
+AGR       17.150      12.214     103.792
+COAL       4.938      14.316      12.342
+OIL        0.228       2.199      21.716
+MM         1.679      12.232      11.326
+NMM        0.756       1.166
+FBT        6.364       1.924      23.745
+TXT        5.904                   8.564
+LOG                                2.237
+PAP        3.654       0.522       2.767
+ROIL      15.985       5.146     170.910
+CHE       20.010      12.301      34.704
+NMP        4.504       5.067       9.544
+MSP       19.110      30.785      30.524
+MP         5.290       3.238       3.815
+GSM       12.429       2.248       2.710
+TME                    1.936       0.460
+EME        1.490                   6.543
+CCE                                0.251
+AC                     0.741
+ELEH       3.784       3.751      24.424
+FG        16.822                  70.213
+CON       29.378      38.279     113.517
+TP        11.017      10.148      45.480
+WRHR      13.193       9.546      42.913
+OTH       39.559      31.453     151.005
+NG         3.531                  19.491
+
+
+----    251 PARAMETER vfm  Endowments 
+
+                 BEJ         TAJ         HEB         SHX         NMG         LIA         JIL         HLJ         SHH
+
+cap.AGR        2.562                   7.522       7.998      26.651       3.719       3.424      14.224
+cap.COAL                   0.447       7.431      31.673      28.218       2.334       2.216       1.284
+cap.OIL        3.778      30.979       9.717                   2.101      10.424      10.624      91.017       2.129
+cap.MM                                27.198       1.355      15.376      10.644       2.050
+cap.NMM                                                        3.690       0.813       0.268
+cap.FBT        4.141       2.913      28.159       8.008      27.701      24.376      10.071      10.748      10.040
+cap.TXT        0.463                  12.954                   3.605       3.416                               2.852
+cap.CLO        1.261                  14.841                               6.193                               8.427
+cap.LOG                               22.221       0.796       0.602       6.305       2.716                   4.325
+cap.PAP        2.239       0.004       9.287       1.518       1.010       3.890       0.273                   5.028
+cap.ROIL                   7.796                   1.514                                          36.379
+GAMS Rev 234  WIN-VS8 23.4.3 x86/MS Windows                                                        03/20/12 11:47:58 Page 9
+China model version 1
+E x e c u t i o n
+
+
+        251 PARAMETER vfm  Endowments 
+
+                 BEJ         TAJ         HEB         SHX         NMG         LIA         JIL         HLJ         SHH
+
+cap.CHE       17.823      12.192      46.543      16.966      10.449      32.508      35.105       5.516      43.986
+cap.NMP        1.792       0.470      28.993       4.845       5.473      18.118       4.327                   5.235
+cap.MSP        5.647      18.084      81.623      78.023      34.925      34.601       6.526                  33.596
+cap.MP         2.208       1.606      14.416       1.882                   8.348       1.540                  11.971
+cap.GSM       12.759       7.357      27.839       5.798                  32.261       2.961       4.064      27.602
+cap.TME       11.364       7.820       7.755       0.799                  18.911      45.614                  23.734
+cap.EME        4.338       5.848      13.929       1.633       0.015      10.612                              21.001
+cap.CCE       18.104      16.684       1.990                   0.502       7.558       0.031                  37.647
+cap.IM         2.937       0.145                                           1.645                               4.025
+cap.WAS                    5.522
+cap.ELEH      13.159       3.202      24.518      29.465      19.826      21.850       2.140       3.148      15.995
+cap.FG         0.266                   1.101                   8.102
+cap.CON        8.682       8.166      36.209       9.804       6.222      18.892      14.178       5.225       8.361
+cap.TP        29.762      20.117      54.766      31.421      28.652      44.902      17.082      18.367      39.056
+cap.WRHR      60.664      25.847      37.206      27.807      11.941      52.850      32.982      42.839      76.918
+cap.OTH      211.715      56.918     130.561      52.600      51.449      90.301      51.077      58.856     206.957
+cap.NG         0.108      31.405       9.062                   4.878       7.771      11.305      92.649       0.603
+lab.AGR        6.162       9.775     180.843      18.803      35.301     109.994      75.163      80.313       5.463
+lab.COAL       0.935                   9.277      35.966      17.883       6.943       3.304       7.188
+lab.OIL        3.610                   6.769                   0.329      11.435       1.643                   1.124
+lab.MM                                 5.892       0.629       4.026       4.513       1.326
+lab.NMM                                                        2.298       0.607       0.399
+lab.FBT        4.147       1.721       6.678       0.588       5.786       9.074       3.346       4.053       8.756
+lab.TXT        0.330                   5.223                   0.440       1.825                               2.614
+lab.CLO        0.437                   2.986                               5.047                               8.274
+lab.LOG                                5.877                   0.522       2.726       1.719                   2.684
+lab.PAP        1.737       0.592       3.777       0.337                   2.191       0.321                   6.454
+lab.ROIL                  11.004                                                                  37.876
+lab.CHE        6.757       6.704      16.008       2.575       2.480      13.389       8.809       3.735      23.905
+lab.NMP        2.034       0.565      12.838       8.065       6.349       5.842       2.037       0.690       3.476
+lab.MSP        3.351      15.067      20.885       9.187      13.959      21.366       2.738       1.794       7.073
+lab.MP         1.504       1.941       3.975       3.911                   4.188       0.527                   7.123
+lab.GSM        7.602       4.451      17.379       3.125       1.395      18.294       2.397       7.197      25.366
+lab.TME        4.399       3.667       3.342       0.639       1.619      13.970      11.762       1.806      17.357
+lab.EME        1.800       3.319       2.724       0.427                   4.350       0.096       1.581      11.246
+lab.CCE        9.828      13.095                                           5.829                              17.865
+lab.IM         2.050       1.414                                           0.848                               2.747
+lab.WAS                    0.611
+lab.ELEH                   0.505       3.564       5.119                   9.357                   1.384
+lab.FG         0.057       0.823       0.495       0.857       5.080                               0.653
+lab.CON       36.874      12.714      29.056      18.178      30.561      36.746      16.166      23.378      26.363
+lab.TP        22.713       8.186      41.489       9.591      18.253      12.361       7.105      10.439      28.253
+lab.WRHR      49.129      17.749      22.914      10.427      27.572      37.792      13.163      10.228      33.615
+lab.OTH      274.892      48.575     123.160      56.167      82.314     110.226      59.636      74.330     208.279
+lab.NG                                 6.115                   3.106       8.782       2.324
+
+       +         JSU         ZHJ         ANH         FUJ         JXI         SHD         HEN         HUB         HUN
+
+cap.AGR        8.950       5.040       4.623                  12.230      21.073       8.627      42.361
+cap.COAL       1.727       0.396      11.725       2.781       2.367      40.933      16.559       0.659       4.962
+cap.OIL        4.560                                                      30.771       7.348       2.204
+cap.MM                                 4.541                   6.310      30.469      18.962       0.957       5.331
+cap.NMM                                            1.413       2.130                  12.851       1.257       2.857
+cap.FBT       22.377      22.896      16.610      20.801      11.165     117.834      75.092      19.039      22.153
+cap.TXT       45.568      68.921       1.712       9.715       4.935      49.206      16.234       3.594       3.631
+cap.CLO       15.505      16.643       0.665      14.349       4.505      22.830       9.601       2.770       1.896
+cap.LOG        5.550      11.527       2.452       9.899       5.536      24.530      17.163       1.855       5.289
+cap.PAP       20.065      18.172       2.373      10.108       9.215      21.916      13.907       2.919       7.444
+cap.ROIL                   0.174                   0.596       1.376                   1.537                   1.977
+cap.CHE      123.613      91.019      16.452      23.409      25.612     143.590      43.000      15.759      19.851
+cap.NMP       18.121      20.225       8.542       9.393       8.308      72.473      47.037       7.858       8.821
+cap.MSP       74.969      34.648      15.447      12.771      14.474      45.860      61.879      10.259      25.036
+cap.MP        22.745      21.720       4.369       5.346       2.248      22.576       7.618       6.098       5.263
+cap.GSM       51.967      56.835       9.452       9.364       8.012      78.063      32.507       7.420       9.361
+cap.TME       24.276      27.649       5.588       4.199       1.384      83.763       9.605      11.799       4.625
+cap.EME       52.770      30.928      11.826      15.057      12.569      34.471       7.129       4.950       5.065
+cap.CCE       87.700      22.919       1.676      21.250      10.394      17.438       1.679       8.885       3.862
+cap.IM         7.806       5.145       0.996       1.808       1.632
+cap.AC                     8.438                   3.931                  11.921       6.494
+GAMS Rev 234  WIN-VS8 23.4.3 x86/MS Windows                                                       03/20/12 11:47:58 Page 10
+China model version 1
+E x e c u t i o n
+
+
+        251 PARAMETER vfm  Endowments 
+
+       +         JSU         ZHJ         ANH         FUJ         JXI         SHD         HEN         HUB         HUN
+
+cap.WAS       49.808       3.138      11.736                                                                   2.648
+cap.ELEH      18.709      30.764       9.571      10.410       5.221      42.074      18.674      16.898      13.013
+cap.FG                     1.132       0.016       0.052       0.185       0.884       0.527       2.307       0.289
+cap.CON       49.491      19.701      24.917      16.808       4.082      20.566      23.505       9.700      26.595
+cap.TP        53.073      47.108      29.721      39.607      22.709      64.969      44.318      17.508      33.904
+cap.WRHR     115.443     112.334      36.827      53.873      23.674      72.090      49.871      45.892      44.883
+cap.OTH      301.580     232.788      71.596     106.555      27.259     182.945      98.902      88.757     127.248
+cap.NG         3.847                                                      34.444       7.483       3.126
+lab.AGR      171.862      92.603     117.245     100.467      77.953     224.195     213.775      96.196     161.082
+lab.COAL       5.013                  10.486       1.734       3.461       1.059      14.948       0.028       4.574
+lab.OIL        3.035                                                                   3.023       2.203
+lab.MM                                 2.656                   3.067       8.890       5.218       1.752       4.497
+lab.NMM                                            1.430       1.372                   3.811       1.367       1.950
+lab.FBT       17.638      11.606       5.248       6.684       4.833      14.465      13.852      21.538       7.107
+lab.TXT       39.663      33.745       2.327       6.670       3.346       5.065       3.801      13.854       3.213
+lab.CLO       25.256      44.561       1.914      26.305       4.233       2.747       3.465      10.251       2.310
+lab.LOG        4.848       9.591       1.418       2.474       3.472       0.073       8.982       4.983       3.030
+lab.PAP       10.454      14.071       1.350       5.392       5.295       8.494       4.526       4.693       2.873
+lab.ROIL                                                                               2.819
+lab.CHE       73.379      35.972       7.894      14.842      10.715      25.468      10.947      15.495      10.066
+lab.NMP       14.726       8.684       3.832      17.368       5.822       9.726      18.961      10.788       5.216
+lab.MSP       40.783       9.925       6.463       5.711       9.491      11.142       8.478      15.632      11.350
+lab.MP        14.359      18.459       1.303       3.161       1.359       5.269       2.648       8.542       2.414
+lab.GSM       46.204      46.563       5.532      10.534       5.274       7.479      14.392      16.347      11.931
+lab.TME       28.848      29.330       5.299       6.514       3.391       2.726       4.060      12.989       6.147
+lab.EME       29.391      20.848       8.627       2.548       3.911       2.812       2.179       5.945       4.684
+lab.CCE       65.483      16.526       0.649      12.691       3.179       5.405       1.164       5.132       1.372
+lab.IM         6.979       4.426       0.426       2.557       1.487
+lab.AC                    10.564                   6.667                               5.728
+lab.WAS                    0.865       0.451                                                                   0.541
+lab.ELEH                               0.901                   1.052                                           3.730
+lab.FG                     0.211                               0.107                   0.229       5.853
+lab.CON       70.059      77.498      26.415      31.488      46.491      90.114      50.715      37.356      25.569
+lab.TP        40.196      22.396      15.481      18.872       8.899      54.175      29.154      24.861       9.704
+lab.WRHR      76.227      48.792      16.173      20.439      11.564      82.653      45.275      37.124      27.796
+lab.OTH      244.279     224.182      96.027      87.402      66.432     331.480     127.743     128.741     100.118
+lab.NG         2.322                                                                   3.158       3.125
+
+       +         GUD         GXI         HAI         CHQ         SIC         GZH         YUN         SHA         GAN
+
+cap.AGR                   13.516      11.575       0.171      19.813      11.248       2.496      13.113      11.604
+cap.COAL                                           4.405       6.463       6.241       3.235      16.277       1.360
+cap.OIL       28.012                                                                              14.623       6.073
+cap.MM         2.852       8.529       0.733       0.901       5.176       1.233       2.604       4.936       2.712
+cap.NMM                                            0.208       1.656       1.142
+cap.FBT       35.406      31.297       1.097       6.349      34.898       5.732      17.499       8.348       4.593
+cap.TXT       20.105       1.444                               3.624
+cap.CLO       25.556                               0.136       0.773
+cap.LOG        9.903       3.901                               2.762
+cap.PAP       28.189       5.102       1.813       1.181       5.752       0.736       1.225       0.989
+cap.ROIL                               1.906                                                       6.472
+cap.CHE       92.644      15.685       1.851       9.726      26.350       7.931       6.720      14.967
+cap.NMP       27.866       5.766       0.200       5.555      10.511       0.922       1.583       3.288       2.507
+cap.MSP       26.104      26.390                  12.479      23.943       9.530      22.362      10.038      18.699
+cap.MP        34.401       2.057       1.058       1.149       3.264       0.613       0.363       0.911
+cap.GSM       28.309       7.196                   5.046      13.527       1.153       1.764       6.384       0.792
+cap.TME       32.783       6.080       1.664      19.257       8.357       1.223       1.403       4.339
+cap.EME       59.802       4.868                   3.801       6.234       0.889       0.852       3.215
+cap.CCE      119.132       1.836                   1.141      10.510       0.433                   1.947
+cap.IM        13.798                               0.404       0.890                               0.382
+cap.AC         9.058
+cap.ELEH      52.437      12.495       2.717       4.520       8.317      11.105       3.782      10.981       6.920
+cap.FG         6.687       0.091       0.209       5.712      15.028       0.430                  11.753
+cap.CON       34.639      17.055       3.645       8.163      36.386       5.947      11.715      21.291       5.048
+cap.TP        87.068      19.408       6.134      13.706      32.571       9.314      11.144      15.723      11.032
+cap.WRHR     184.709      38.398       8.323      28.631      59.269      13.790      26.403      13.012      12.832
+cap.OTH      488.831      41.188      10.640      38.911     110.315      29.475      51.901      29.713      25.946
+cap.NG        32.860                               0.847       1.597                              16.365       5.959
+lab.AGR      168.125     121.929      24.141      46.184     177.697      32.421      78.930      47.176      27.428
+GAMS Rev 234  WIN-VS8 23.4.3 x86/MS Windows                                                       03/20/12 11:47:58 Page 11
+China model version 1
+E x e c u t i o n
+
+
+        251 PARAMETER vfm  Endowments 
+
+       +         GUD         GXI         HAI         CHQ         SIC         GZH         YUN         SHA         GAN
+
+lab.COAL                                           4.348       9.097       7.674       3.440       8.863       2.544
+lab.OIL                                                                                            3.343       0.319
+lab.MM         0.749       2.016       0.363                   2.493       0.933       2.050       4.112       1.560
+lab.NMM                                                        0.899       0.702
+lab.FBT       19.984       5.333       0.416       2.563      16.422       2.038       5.078       1.994       1.980
+lab.TXT       28.185       0.327                   1.210       3.210                               0.047
+lab.CLO       71.052                                           0.764
+lab.LOG       15.339       0.859                               1.823
+lab.PAP       41.060       1.190       0.157       0.551       2.468       0.252       1.367       0.954
+lab.ROIL                                                                                           4.686
+lab.CHE       67.396       5.187       0.506       5.721      16.595       3.227       5.565       4.124       5.221
+lab.NMP       27.335       2.809                   2.850       5.554       1.629       1.320       1.557       1.573
+lab.MSP       10.514       6.355       0.354       3.884      12.018       3.175      10.966       4.485      10.645
+lab.MP        34.879       1.128       0.710       1.275       3.009       0.475                   0.795
+lab.GSM       27.134       2.878                   3.985      11.365       1.050       1.666       6.016       1.355
+lab.TME       24.535       3.904       0.383      15.456       5.531       1.432       0.661       5.001
+lab.EME       54.813       0.752                   2.538       4.077       0.286       0.562       1.878       0.201
+lab.CCE       95.986       0.435                   0.433       5.860       0.097                   1.910
+lab.IM        10.903                               1.481       0.779                               0.936
+lab.AC        16.126
+lab.ELEH                               0.588                   4.846                               3.818       3.023
+lab.FG         4.659                   0.133       3.431      14.208       0.428                  11.736
+lab.CON       59.169      19.346       4.614      22.847      31.419       9.729      19.305      18.375      13.857
+lab.TP        34.491       8.809       2.018      10.601      14.628       4.335       7.492      10.643       5.542
+lab.WRHR      82.373      10.144       2.731       9.704      19.304       5.017      10.366      16.550       4.449
+lab.OTH      315.198      82.632      13.385      49.997     118.512      42.412      63.229      73.913      38.926
+lab.NG                                             0.723       1.214                               5.085       0.205
+
+       +         NXA         QIH         XIN
+
+cap.AGR        0.123       0.651       0.773
+cap.COAL       3.286       2.080       0.976
+cap.OIL        0.116       2.386      42.792
+cap.MM                     4.622       2.547
+cap.FBT        0.623       0.160       1.621
+cap.TXT        0.903
+cap.PAP        0.092
+cap.ROIL       1.787
+cap.CHE        3.761       4.669       4.192
+cap.NMP        0.950       0.874
+cap.MSP        3.265       5.992       2.440
+cap.MP         0.573       1.094
+cap.GSM        1.614
+cap.TME                    0.620
+cap.EME        0.179
+cap.ELEH       3.821
+cap.FG         3.570                  11.522
+cap.CON        2.965       2.151       2.950
+cap.TP         3.830       1.846       4.575
+cap.WRHR       2.797       3.661      12.879
+cap.OTH        9.522       6.041      27.825
+cap.NG         0.308       1.766      42.387
+lab.AGR        8.597       7.771      59.526
+lab.COAL       2.172       1.945       1.825
+lab.OIL                    0.430
+lab.MM                     0.617
+lab.FBT                                0.227
+lab.TXT        0.127
+lab.ROIL       1.277                  20.325
+lab.CHE        1.878       1.290       3.018
+lab.NMP        0.432       0.310
+lab.MSP        1.622       1.239       0.444
+lab.MP                     0.648
+lab.GSM        1.205       0.587
+lab.ELEH                   1.447       5.547
+lab.FG         3.454                  11.720
+lab.CON        4.769       5.148      18.854
+lab.TP         1.644       1.326       9.047
+lab.WRHR       1.609       1.300       6.825
+GAMS Rev 234  WIN-VS8 23.4.3 x86/MS Windows                                                       03/20/12 11:47:58 Page 12
+China model version 1
+E x e c u t i o n
+
+
+        251 PARAMETER vfm  Endowments 
+
+       +         NXA         QIH         XIN
+
+lab.OTH       11.834      11.706      53.680
+lab.NG         0.286
+
+
+----    330 PARAMETER chk_vafm  
+
+                ANH         FUJ         JXI         HAI         GZH
+
+NG.ROIL                                           1.000
+NG.CHE                                1.000                   1.000
+NG.GSM                                            1.000
+NG.FG         1.000       1.000       1.000       1.000
+
+
+
+EXECUTION TIME       =        0.234 SECONDS      5 Mb  WIN234-234 May 21, 2010
+
+
+USER: Institute of Nuclear and New Energy Technology G101217:1031AV-WIN
+      TsingHua Univerrsity                                       DC8455
+      License for teaching and research at degree granting institutions
+
+
+**** FILE SUMMARY
+
+Input      c:\Users\DaZHANG\Chinamodel\model\model.gms
+Output     c:\Users\DaZHANG\Chinamodel\model\model.lst

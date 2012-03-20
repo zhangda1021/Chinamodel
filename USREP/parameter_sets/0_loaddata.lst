@@ -1,0 +1,1797 @@
+GAMS Rev 236  WIN-VS8 23.6.5 x86/MS Windows                                                        10/17/11 19:44:45 Page 1
+read an INTEGRATED MODEL dataset
+C o m p i l a t i o n
+
+
+   2   
+   3  * Justin Caron, 01/10/2010
+   4  * update 26/11/2010
+   5   
+   6  * based on Sebastian Rausch's IMPLANinGAMS code
+   7  * and Thomas Rutherford's GTAP7inGAMS package
+   8   
+   9  * -------- NAMESET CHANGES ---------------------
+  10  *                       was             is
+  11  * institutions          i               ins
+  12  * sectors               s,g             i,j
+  13  * states (intra-ntl)    r,rr            s, ss
+  14  * GTAP regions          -               r
+  15  * aggregated SAM acc    j               sam
+  16   
+  17   
+  21   
+  22  SET     f(*)    Factors,
+  23          t_(*)   Accounts,
+  24          g(*)            Goods and final demands C G and I
+  25          rs(*)   All regions (intra- and international);
+GDXIN   c:\Documents and Settings\jcarone\My Documents\My Dropbox\AEA_paper\model\data\integrated.gdx
+  28   
+--- LOAD  rs = 34:rs
+--- LOAD  f = 20:f
+--- LOAD  t_ = 21:t
+--- LOAD  g = 26:g
+  30   
+  31  * load r and s as subsets of rs
+  32  set     s(rs)   Intra-natinonal regions (states)
+  33          r(rs)   Inter-national regions (GTAP);
+  34   
+  35   
+GDXIN   c:\Documents and Settings\jcarone\My Documents\My Dropbox\AEA_paper\model\data\integrated.gdx
+  38   
+--- LOAD  s = 19:s
+--- LOAD  r = 32:r
+  40   
+  41  * load i and ins as subsets of g
+  42  set     ins(g)          Institutions
+  43          i(g)            Goods and sectors
+  44          h(g)            Households
+  45          pub(g)          Public entities
+  46          corp(g) Corporate entities
+  47          c(g)            consumption end use ("c" for gtap + h for US)
+  48          pb(g)           public end use ("g" for gtap + pub for US)
+  49          us(rs)          US regions;
+  50   
+  51   
+  52   
+--- LOAD  i = 31:i
+--- LOAD  ins = 22:ins
+--- LOAD  h = 23:h
+--- LOAD  pub = 24:pub
+--- LOAD  corp = 25:corp
+  54   
+  55  c(h) = yes;
+  56  c("c") = yes;
+  57  pb(pub) = yes;
+  58  pb("g") = yes;
+  59   
+  60  us(s) = yes;
+  61   
+  62  alias (h,hh),(i,j),(ins,ins2),(s,ss), (r,rr),(rs,rsrs) ;
+  63   
+  64  SET     mkt /dmkt,ftrd,dtrd/,
+  65          trd(mkt)/ftrd,dtrd/;
+  66   
+  67  set lab(f) /lab/;
+  68   
+  69  set
+  70  *       t      "Time periods" /2006, 2010, 2015, 2020, 2025, 2030, 2035, 2040, 2045, 2050,
+  71  *                2055, 2060, 2065, 2070, 2075, 2080, 2085, 2090, 2095, 2100/
+GAMS Rev 236  WIN-VS8 23.6.5 x86/MS Windows                                                        10/17/11 19:44:45 Page 2
+read an INTEGRATED MODEL dataset
+C o m p i l a t i o n
+
+
+  72          t      "Time periods" /2004,2006,2008,2010,2012,2014,2016,2018,2020,2022,2024,2026,2028,
+  73                  2030,2032,2034,2036,2038,  2040,2042,2044,2046,2048, 2050,2052,2054,2056,2058,  2060,2062,2064,2066,2
+      068,
+  74                  2070,2072,2074,2076,2078, 2080,2082,2084,2086,2088,  2090,2092,2094,2096,2098, 2100/
+  75   
+  76  alias (t,ts);
+  77   
+      *	 Subset of regions
+       
+      SET     OECD(RS)         /CAN, JPN, EUR, ANZ/;
+       
+      SET     LDC(RS)  /MEX, ROE, RUS, ASI, CHN, IND, BRA, AFR, MES, LAM, REA/;
+       
+      set ldc_rich(ldc) /MEX, BRA, ASI, LAM/;
+      set ldc_poor(ldc) /AFR, IND, REA/;
+      set ldc_mes(ldc) /MES/;
+       
+       
+      SET	JPN(RS) /JPN/;
+       
+      SET	RUS(RS) /RUS/;
+  94   
+  95  * --------      DEFINE AND LOAD PARAMETERS:
+  96   
+  97  PARAMETER
+  98   
+  99  * Integrated parameters (based on GTAP7 namespace) - loaded
+ 100   
+ 101          vfm(f,g,rs)     Endowments - Firms' purchases at market prices,
+ 102          vdfm(i,g,rs)    Intermediates - firms' domestic purchases at market prices,
+ 103          vifm(i,g,rs,trd)        Intermediates - firms' imports at market prices (ADDED DIMENSION),
+ 104          vxmd(i,rs,rsrs) Trade - bilateral exports at market prices,
+ 105          evom(f,rs,*,*)          Factor supply
+ 106          rto(g,rs)       Output (or income) subsidy rates
+ 107          rtf(f,g,rs)     Primary factor and commodity rates taxes
+ 108          rtfd(i,g,rs)    Firms domestic tax rates
+ 109          rtfi(i,g,rs)    Firms' import tax rates
+ 110          rtxs(i,rs,rsrs) Export subsidy rates
+ 111          rtms(i,rs,rsrs) Import taxes rates
+ 112          vst(i,rs)       Trade - exports for international transportation
+ 113          vtwr(i,j,rs,rs) Trade - Margins for international transportation at world prices
+ 114   
+ 115  * Integrated parameters (based on GTAP7 namespace) - computed
+ 116          vdm(g,rs)       Domestic output
+ 117          vom(g,rs)       Aggregate output
+ 118          vim(i,rs,trd)   Aggregate imports
+ 119   
+ 120  * GTAP parameters - loaded
+ 121   
+ 122          evd(i,g,rs)     Volume of energy demand (mtoe),
+ 123          evt(i,rs,rsrs)  Volume of energy trade (mtoe),
+ 124          eco2(i,g,rs)    Volume of carbon emissions (Gg)
+ 125          esubd(i)        Elasticity of substitution (M versus D),
+ 126          esubva(g)       Elasticity of substitution between factors
+ 127          esubm(i)        Intra-import elasticity of substitution,
+ 128          etrae(f)        Elasticity of transformation,
+ 129          eta(i,rs)       Income elasticity of demand,
+ 130          epsilon(i,rs)   Own-price elasticity of demand,
+ 131   
+ 132   
+ 133  * US model parameters - loaded
+ 134   
+ 135  * STARRED ARE UNUSED AND CAN BE DELETED
+ 136  *       vx(s,i)         Aggregate exports
+ 137  *       vdxm(s,i,trd)   Output to export markets
+ 138  *       vxm(s,i,trd)    National and international exports
+ 139  *       vpm(s,h)        Aggregate consumption
+ 140          vinv(s)         Aggregate investment
+ 141  *       vgm(s,pub)      Public sector demand
+ 142          evpm(s,j,g)     Goods supply (make and export),
+ 143          vprf(s,g)       Corporate profit
+ 144          vtrn(s,g,t_)    Transfers
+ 145  *       vdmi(s,i)       Domestic output including institutional imake
+GAMS Rev 236  WIN-VS8 23.6.5 x86/MS Windows                                                        10/17/11 19:44:45 Page 3
+read an INTEGRATED MODEL dataset
+C o m p i l a t i o n
+
+
+ 146  *       trnsfer(s,g,t,ins2)     Inter-institutional transfers
+ 147  *       iexport(s,g,j,trd) Institutional exports
+ 148          btax(i,s)       btax from vfm
+ 149          btaxincome(pub,t_,s) btax income to govs from evom
+ 150          nt(*)           net transfers
+ 151   
+ 152          shrnh           Shares for nuclear and hydro outputs and inputs
+ 153   
+ 154          stey0(s,*)              "2006 State level energy supplied (quadrillion Btu)"
+ 155          eind(rs,i,g)                    "Industrial energy demand (quadrillion btu)"
+ 156          efd(rs,*)                       "Final energy demand (quadrillion btu)"
+ 157          eimp(rs,*,trd)                  "Energy imports (quadrillion btu)"
+ 158          eexp(rs,*,trd)                  "Energy exports (quadrillion btu)"
+ 159          fossil_reserves(s,i)            "Fossil fuel reserves 2006 (quadrillion btu)"
+ 160          population_uscensus     "US Census 2006 population"
+ 161          wind_ele0               "Electricity produced from wind 2006 (billion btu)"
+ 162          geo_ele0                "Electricity produced from geothermal energy by the electric power sector 2006 (Billi
+      on Btu)"
+ 163          biomass_ele0            "Wood and waste consumed by the electric power sector 2006 (billion Btu)"
+ 164          biofuels_prod0          "Energy Production Estimates in Trillion Btu by Source and by State, 2007"
+ 165   
+ 166  ;
+--- LOAD  vdfm = 4:vdfm
+--- LOAD  vifm = 5:vifm
+--- LOAD  vfm = 6:vfm
+--- LOAD  vprf = 15:vprf
+--- LOAD  evom = 13:evom
+--- LOAD  evpm = 14:evpm
+--- LOAD  vtrn = 16:vtrn
+--- LOAD  vst = 38:vst
+--- LOAD  vtwr = 39:vtwr
+--- LOAD  vinv = 10:vinv
+--- LOAD  btax = 28:btax
+--- LOAD  vxmd = 27:vxmd
+--- LOAD  btaxincome = 29:btaxincome
+ 167  $load  vdfm     vifm vfm vprf evom evpm vtrn vst vtwr vinv btax vxmd btaxincome nt shrnh
+****                                                                                    $492 $492
+ 168   
+ 169  *$load vdxm vx vxm  vgm  vpm vdmi trnsfer iexport
+ 170   
+ 171  $load   stey0
+****              $492
+ 172  $load        eind
+****                  $492
+ 173  $load        efd
+****                 $492
+ 174  $load   eimp
+****             $492
+ 175  $load   eexp
+****             $492
+ 176  $load   fossil_reserves
+****                        $492
+ 177  $load   population_uscensus=population
+****                                       $492
+ 178  $load   wind_ele0
+****                  $492
+ 179  $load   geo_ele0
+****                 $492
+ 180  $load   biomass_ele0
+****                     $492
+ 181  $load   biofuels_prod0
+****                       $492
+ 182   
+ 183  * --------- GTAP 7 DATA ----------------------
+ 184   
+ 185  * all based on GTAPinGAMS' gtap7data.gms file from Thomas Rutherford
+ 186   
+ 187  * load GTAP parameters
+--- LOAD  esubd = 40:esubd
+--- LOAD  esubva = 41:esubva
+--- LOAD  esubm = 42:esubm
+--- LOAD  etrae = 43:etrae
+--- LOAD  eta = 44:eta
+GAMS Rev 236  WIN-VS8 23.6.5 x86/MS Windows                                                        10/17/11 19:44:45 Page 4
+read an INTEGRATED MODEL dataset
+C o m p i l a t i o n
+
+
+--- LOAD  epsilon = 45:epsilon
+--- LOAD  rto = 46:rto
+--- LOAD  rtf = 47:rtf
+--- LOAD  rtfd = 48:rtfd
+--- LOAD  rtfi = 49:rtfi
+--- LOAD  rtxs = 50:rtxs
+--- LOAD  rtms = 51:rtms
+--- LOAD  evd = 35:evd
+--- LOAD  evt = 36:evt
+--- LOAD  eco2 = 37:eco2
+ 191   
+ 192   
+ 193  set
+ 194          rnum(*) Numeraire region,
+ 195          sf(f)   Sluggish primary factors (sector-specific),
+ 196          mf(f)   Mobile primary factors,
+ 197  *       ghg     Greenhouse gases /co2/,
+ 198          ghgsrc  Sources of greenhouse gas emissions /imp,dom/,
+ 199          src     Sources /domestic, imported/;
+ 200   
+ 201   
+ 202  parameter
+ 203          rtf0(f,g,*)     Primary factor and commodity rates taxes
+ 204          rtfd0(i,g,*)    Firms domestic tax rates
+ 205          rtfi0(i,g,*,*)  Firms' import tax rates
+ 206          rtxs0(i,*,*)    Export subsidy rates
+ 207          rtms0(i,*,*)    Import taxes rates
+ 208          rto0;
+ 209  rto0(i,rs) = rto(i,rs);
+ 210  rtf0(f,g,rs) = rtf(f,g,rs);
+ 211  rtfd0(i,g,rs) = rtfd(i,g,rs);
+ 212  rtfi0(i,g,rs,"ftrd") = rtfi(i,g,rs);
+ 213  rtxs0(i,rs,rsrs) = rtxs(i,rs,rsrs);
+ 214  rtms0(i,rs,rsrs) = rtms(i,rs,rsrs);
+ 215   
+ 216  parameter       pvxmd(i,*,*)    Import price (power of benchmark tariff)
+ 217                  pvtwr(i,*,*)    Import price for transport services;
+ 218   
+ 219  pvxmd(i,rsrs,rs) = (1+rtms0(i,rsrs,rs)) * (1-rtxs0(i,rsrs,rs));
+ 220  pvtwr(i,rsrs,rs) = 1+rtms0(i,rsrs,rs);
+ 221   
+ 222   
+ 223  * ---------- INTEGRATED COMPUTED PARAMETERS ---
+ 224   
+ 225   
+ 226  vdm(i,rs) = sum(g, vdfm(i,g,rs));
+ 227   
+ 228   
+ 229  * VOM - this one should be correct
+ 230   
+ 231  *vom(i,r) = vdm(i,r) +  sum(rr, vxmd(i,r,rr)) + vst(i,r);
+ 232  vom(i,rs) = vdm(i,rs) +  sum(rsrs, vxmd(i,rs,rsrs)) + vst(i,rs);
+ 233   
+ 234   
+ 235  vom(c,rs) = sum(i, vdfm(i,c,rs)*(1+rtfd0(i,c,rs)) + sum(trd,vifm(i,c,rs,trd)*(1+rtfi0(i,c,rs,trd))));
+ 236  vom(pb,rs) = sum(i, vdfm(i,pb,rs)*(1+rtfd0(i,pb,rs)) + sum(trd,vifm(i,pb,rs,trd)*(1+rtfi0(i,pb,rs,trd))));
+ 237  vom("i",rs) = sum(i, vdfm(i,"i",rs)*(1+rtfd0(i,"i",rs)) + sum(trd,vifm(i,"i",rs,trd)*(1+rtfi0(i,"i",rs,trd))));
+ 238   
+ 239   
+ 240  vdm(c,rs) = vom(c,rs);
+ 241  vdm(pb,rs) = vom(pb,rs);
+ 242   
+ 243  * VIM - should also be correct
+ 244  vim(i,rs,trd) =  sum(g, vifm(i,g,rs,trd));
+ 245   
+ 246  PARAMETER totalvom;
+ 247  totalvom = sum((j,r), vdm(j,r));
+ 248  display totalvom;
+ 249   
+ 250  * ----- GTAP parameters -----------
+ 251   
+ 252  parameter
+ 253          vtw(j)          Aggregate international transportation services,
+GAMS Rev 236  WIN-VS8 23.6.5 x86/MS Windows                                                        10/17/11 19:44:45 Page 5
+read an INTEGRATED MODEL dataset
+C o m p i l a t i o n
+
+
+ 254          vb(*,*,*)       Current account balance;
+ 255   
+ 256  vtw(j) = sum(rs, vst(j,rs));
+ 257   
+ 258  * vb is defined as current account deficit: ie, is difference between imports and exports (should be positive for USA
+      )
+ 259  * it has to be equal to what country consumes - its endowments
+ 260   
+ 261  * is going to be related to vtrn in IMPLAN somehow ..
+ 262   
+ 263  * for GTAP regions, calculated as a residual:
+ 264   
+ 265   
+ 266   
+ 267  vb("g","ftrd", r) = sum(c, vom(c,r)) + sum(pb, vom(pb,r)) + vom("i",r)
+ 268   
+ 269          - sum((f,t_), evom(f,r,"c",t_))
+ 270          - sum(j,  vom(j,r)*rto(j,r))
+ 271          - sum(g,  sum(i, vdfm(i,g,r)*rtfd(i,g,r) + vifm(i,g,r,"ftrd")*rtfi(i,g,r)))
+ 272          - sum(g,  sum(f, vfm(f,g,r)*rtf(f,g,r)))
+ 273          - sum((i,rs), rtms(i,rs,r) *  (vxmd(i,rs,r) * (1-rtxs(i,rs,r)) + sum(j,vtwr(j,i,rs,r))))
+ 274          + sum((i,rs), rtxs(i,r,rs) * vxmd(i,r,rs));
+ 275   
+ 276  vb("all", "all","chksum") = sum((g,r,trd), vb(g,trd,r));
+ 277  display vb;
+ 278   
+ 279  * what vb should be:
+ 280   
+ 281  *----    879 PARAMETER vb  Current account balance
+ 282   
+ 283  *USA        568.006,    EUR         56.740,    ROW       -624.747,    eas        560.953,    wes         58.395
+ 284  *chksum -3.07844E-7
+ 285   
+ 286   
+ 287   
+ 288  * IF TAKE ONLY EXPORTS TOAND FROM GTAP: VB CORRECT..
+ 289  * SEE DIFFERENT TREATEMENT OF EXPORT IN ASSIGMENT OF VOM
+ 290   
+ 291  * THIS IS GONNA HAVE TO ADD UP TO ZERO AT SOME POINT..
+ 292   
+ 293  *       Determine which factors are sector-specific
+ 294   
+ 295   
+ 296  mf(f) = yes$(1/etrae(f)=0);
+ 297  sf(f) = yes$(1/etrae(f)>0);
+ 298   
+ 299  display etrae,f;
+ 300  display mf,sf;
+ 301   
+ 302  parameter       mprofit Zero profit for m,
+ 303                  yprofit Zero profit for y;
+ 304   
+ 305  mprofit(i,rs) = sum(trd, vim(i,rs,trd)) - sum(rsrs, pvxmd(i,rsrs,rs)*vxmd(i,rsrs,rs)+sum(j, vtwr(j,i,rsrs,rs))*pvtwr(
+      i,rsrs,rs));
+ 306  mprofit(i,rs) = round(mprofit(i,rs),5);
+ 307  display mprofit;
+ 308  * mprofit also ok if take only gtap regions
+ 309   
+ 310   
+ 311  yprofit(g,rs) = vom(g,rs)*(1-rto(g,rs))-sum(i, vdfm(i,g,rs)*(1+rtfd0(i,g,rs))
+ 312          + sum(trd, vifm(i,g,rs,trd)*(1+rtfi0(i,g,rs,trd)))) - sum(f, vfm(f,g,rs)*(1+rtf0(f,g,rs)));
+ 313  yprofit(i,r) = round(yprofit(i,r),6)
+ 314  display yprofit;
+ 315   
+ 316  *       Define a numeraire region for denominating international
+ 317  *       transfers:
+ 318   
+ 319  rnum(rs) = yes$(vom("c",rs)=smax(rsrs,vom("c",rsrs)));
+ 320  display rnum;
+ 321   
+ 322   
+ 323  *NEW :
+ 324  * ----------------------------------------------------------------------------------
+GAMS Rev 236  WIN-VS8 23.6.5 x86/MS Windows                                                        10/17/11 19:44:45 Page 6
+read an INTEGRATED MODEL dataset
+C o m p i l a t i o n
+
+
+ 325   
+       
+      *	    
+      *---------------------------------------------------------------------------------------
+      * changes relative to USREP :
+      * -------- NAMESET CHANGES ---------------------
+      *			was		is
+      * institutions		i		ins
+      * sectors 		s,g		i,j
+      * states (intra-ntl)	r,rr		s, ss
+      * GTAP regions		-		r
+      * aggregated SAM acc	j		sam
+       
+      * ------- PARAMETER NAME CHANGES
+      * sectoral capital d.	kd0		vfm("cap",,)
+      * output tax rate	tx(s,i)		rto
+      * payroll tax rate	ssctf		rtf("lab",,)
+      * capital inc tax r.	txcorp		rtf("cap",
+      * hh specific lab end	labor(s,h)	vfms("lab",h,s)
+      * hh specific cap end	Kapital(s,h)	vfms("lab",h,s)
+       
+       
+       
+      * ------ ELEMENTS IN US MODEL WITH NO EQUIVALENT IN GTAP
+      - multiple household types
+      - multiple governement agents
+       
+      - factor endowments per household : created VFMS parameter
+      - tax revenues (output..) per gov agents, in trevrto
+      - personnal income tax (for hh's)
+      - household investment (aggregated investment vinv imputed to hh based on capital income)
+       
+       
+       
+      * ------ elements of IMPLAN data relegated to adjustment factor
+       
+      - stock adjustment (calculated from good supply evpm) - only to households, evpm for PUB and CORP are imputed to hous
+      eholds based on capital income) - ADDED TO OUTPUT IN THE END
+       
+      * ------ ELEMENTS IN GTAP WITH NO EQUIVALENT IN US MODEL
+       
+      - rtfd / rtfm : firms tax rates .. input taxes and consumption taxes
+      - differentiated labor and capital tax rates betvdm(i,rs) = sum(g, vdfm(i,g,rs));
+      ween sectors (only one in IMPLAN)
+       
+ 371   
+ 372   
+ 373  * ---- CALCULATE INTERMEDIATE PARAMETERS ---
+ 374   
+ 375  parameter
+ 376          vinvs           "Investment demand by household type (imputed based on capital income)"
+ 377          vfms(f,g,rs)    "Factor endowment by household type"
+ 378   
+ 379          stk0            "Stock changes/institutional make+imports"
+ 380          hhadj(g,rs)             "Household adjustment factor"
+ 381          govadj(g,rs)            "Government adjustment factor"
+ 382          thetals         "Multiple of benchmark labor supply to determine leisure consumption" /0/;
+ 383   
+ 384   
+ 385  * ---- ARMINGTON AGGREGATE:
+ 386   
+ 387  * note: there are no rtfd value-added taxes in State-level data
+ 388  parameter       rtda0(i,rs)     Benchmark domestic value-added tax rate,
+ 389                  rtia0(i,rs,trd) Benchmark imports value-added tax rate,
+ 390                  rtda(i,rs)      Applied domestic value-added tax rate,
+ 391                  rtia(i,rs,trd)  Applied imports value-added tax rate
+ 392                  vafm(i,g,rs)    Intermediate demand for Armington goods,
+ 393                  vam(i,rs)       Aggregate supply of Armington goods;
+ 394   
+ 395  vafm(i,g,rs) = max((vdfm(i,g,rs)*(1+rtfd0(i,g,rs))+sum(trd,vifm(i,g,rs,trd)*(1+rtfi0(i,g,rs,trd)))),0);
+ 396   
+ 397  vam(i,rs) = sum(g$(NOT sameas(g,"ent")), vafm(i,g,rs));
+ 398   
+GAMS Rev 236  WIN-VS8 23.6.5 x86/MS Windows                                                        10/17/11 19:44:45 Page 7
+read an INTEGRATED MODEL dataset
+C o m p i l a t i o n
+
+
+ 399   
+ 400  rtda0(i,rs)$sum(g,vdfm(i,g,rs)) = sum(g,vdfm(i,g,rs)*rtfd0(i,g,rs))/sum(g,vdfm(i,g,rs));
+ 401  rtia0(i,rs,trd)$sum(g,vifm(i,g,rs,trd)) = sum(g,vifm(i,g,rs,trd)*rtfi0(i,g,rs,trd))/sum(g,vifm(i,g,rs,trd));
+ 402  rtda(i,rs) = rtda0(i,rs);
+ 403  rtia(i,rs,trd) = rtia0(i,rs,trd);
+ 404   
+ 405  parameter traderevenue(pub,s);
+ 406  traderevenue("fdg",s) = sum((i,r), rtms(i,r,s) *  (vxmd(i,r,s) * (1-rtxs(i,r,s)) + sum(j,vtwr(j,i,r,s))))
+****                   $170
+ 407          - sum((i,r), rtxs(i,s,r) * vxmd(i,s,r));
+ 408  display traderevenue;
+ 409   
+ 410   
+ 411  *----------------------------------------------------
+ 412  * MODIFICATIONS TO IMPLAN DATA
+ 413  *----------------------------------------------------
+ 414   
+ 415  parameter totaltransfers;
+ 416  totaltransfers(s,"before changes") = sum((t_,ins), vtrn(s,ins,t_));
+ 417  display totaltransfers;
+ 418   
+ 419  * first, recheck budget balances for states:
+ 420  parameter balancecheck;
+ 421  balancecheck("households",hh,s) =
+ 422          (sum((f,t_) , evom(f,s,hh,t_)) + vprf(s,hh) + sum(j, evpm(s,j,hh)) + sum(t_, vtrn(s,hh,t_)))
+ 423          / vom(hh,s);
+ 424   
+ 425  balancecheck("pub",pub,s) =
+ 426          (sum((f,t_) , evom(f,s,pub,t_)) + sum(t_,btaxincome(pub,t_,s)) + vprf(s,pub) + sum(j, evpm(s,j,pub)) + sum(t_
+      , vtrn(s,pub,t_)) + traderevenue(pub,s))
+ 427          / vom(pub,s);
+ 428   
+ 429  display balancecheck;
+ 430  *ok here
+ 431   
+ 432  * -- FACTOR ENDOWMENTS - EVOM..
+ 433   
+ 434  * distribute labor endowments to  household type
+ 435  * this distributes hh and ent labor endowment (small) to households
+ 436  * labor endowment of govs not included here
+ 437  vfms("lab",h,s) = sum(t_,evom("lab",s,h,t_))/sum((h.local,t_),evom("lab",s,h,t_))
+ 438                  * (sum(i, vfm("lab",i,s))-sum((t_,pub),evom("lab",s,pub,t_)));
+ 439   
+ 440  * distribute capital payments to each household type
+ 441  * this distributes all capital endowment (incl ent and gov)
+ 442  parameter capsh;
+ 443  capsh(h,s) = sum(t_,evom("cap",s,h,t_)) /sum((h.local,t_),evom("cap",s,h,t_));
+ 444  capsh("hhl","scen") = capsh("hhl","scen") + 0.005;
+ 445  capsh("hh150","scen") = capsh("hh150","scen") - 0.005;
+ 446   
+ 447  vfms("cap",h,s) = capsh(h,s) * sum(i, vfm("cap",i,s));
+ 448   
+ 449  * distribute resource payments to each household type
+ 450  * this distributes all capital endowment (incl ent and gov)
+ 451  *vfms("res",h,s) = sum(t_,evom("res",s,h,t_))
+ 452  *               /sum((h.local,t_),evom("cap",s,h,t_)) * sum(i, vfm("cap",i,s));
+ 453   
+ 454  * for resources, its already shared out:
+ 455  vfms("res",h,s) = sum(t_,evom("res",s,h,t_));
+ 456   
+ 457  * -- STOCK CHANGES
+ 458  * Distribute stock changes in proportion to capital income:
+ 459  *               note: evpm is good supply (make and export), from different elements of INS to sectors i, ent is heav
+      ily negative, h and gov slightly positive, overall negative
+ 460  *               stock changes are goods supply from households + good supply from pub and corp distributed to househo
+      lds according to share of capital ownership
+ 461  stk0(s,i,h) = evpm(s,i,h) + sum(t_,evom("cap",s,h,t_))
+ 462                  /sum((h.local,t_),evom("cap",s,h,t_)) * (sum(pub, evpm(s,i,pub)) + sum(corp,evpm(s,i,corp)));
+ 463   
+ 464  *stk0(s,i,h)$vom(i,s) = evpm(s,i,h) + sum(t_$vom(i,s),evom("cap",s,h,t_))
+ 465  *               /sum((h.local,t_)$vom(i,s),evom("cap",s,h,t_)) * (sum(pub, evpm(s,i,pub)) + sum(corp,evpm(s,i,corp)))
+      ;
+ 466   
+GAMS Rev 236  WIN-VS8 23.6.5 x86/MS Windows                                                        10/17/11 19:44:45 Page 8
+read an INTEGRATED MODEL dataset
+C o m p i l a t i o n
+
+
+ 467  * these stock changes are all negative.
+ 468   
+ 469  display stk0;
+ 470   
+ 471  * -- INVESTMENT
+ 472  * QQ : VINV WAS NOT BALANCED.. still dont understand why it is not equal to investment demand
+ 473   
+ 474  * assign investment to households based on capital income:
+ 475  * ASSUMPTION : use investment demand (should satisfy i zero pi automatically)
+ 476  vinvs(h,s) = sum(t_,evom("cap",s,h,t_))
+ 477                  /sum((h.local,t_),evom("cap",s,h,t_))  * (sum(i,  vdfm(i,"i",s) + sum(trd, vifm(i,"i",s,trd))));
+ 478   
+ 479   
+ 480  *       Stock changes/instituional make+export are fairly small relative to
+ 481  *       production. We impute stock changes to sectoral production.
+ 482  *       Sectoral production net of stock changes:
+ 483   
+ 484  * NEW CHANGE HERE: TAKE OUT EVPM OUT OF OUTPUT.. SMALL CHANGE BUT NECESSARY ?
+ 485  * QQ : WHY IS EVPM IN ORIGINAL ZERO-PI
+ 486  vom(i,s) = vom(i,s) +  sum(h,stk0(s,i,h)) - sum(ins, evpm(s,i,ins));
+ 487   
+ 488  * Adjust sectoral capital inputs:
+ 489  vfm("cap",i,s) = vfm("cap",i,s) + sum(h,stk0(s,i,h));
+ 490   
+ 491  * re-adjust capital endowments by household type:
+ 492  vfms("cap",h,s) = vfms("cap",h,s) + sum(i,stk0(s,i,h));
+ 493  * QUESTION : ADD THIS TO CAP OR LAB ?
+ 494   
+ 495  * -- ADJUSTMENT FACTORS:
+ 496  *       are used so that each household's budget balance is satisfied
+ 497   
+ 498  * QQ : WHY DO WE TAKE OUT STOCK CHANGE HERE ! THIS MAKE RH BB NOT HOLD !!
+ 499  * we take out stock change, but make no change to vdm = vom(hh)?
+ 500  * dont see how this can work
+ 501  * UNSURE STEP: TOOK OUT STOCK CHANGE HERE
+ 502  hhadj(h,s) = vom(h,s) + vinvs(h,s) - sum(f, vfms(f,h,s));
+ 503  *- sum(g, stk0(s,g,h));
+ 504  govadj(pub,s) = vom(pub,s);
+ 505   
+ 506  * check balance again here:
+ 507  balancecheck("households",hh,s) =
+ 508  *       (sum((f,t_) , evom(f,s,hh,t_)) + vprf(s,hh) + sum(j, evpm(s,j,hh)) + sum(t_, vtrn(s,hh,t_)))
+ 509  *       becomes:
+ 510          (sum(f, vfms(f,hh,s)) - vinvs(hh,s) + hhadj(hh,s)  )
+ 511                  / (vom(hh,s));
+ 512  * would hold if it werent for stock changes!
+ 513   
+ 514  balancecheck("pub",pub,s) =
+ 515          govadj(pub,s)   / vom(pub,s);
+ 516   
+ 517  display balancecheck;
+ 518   
+ 519  *------------------------------------------------------------
+ 520  * TAX RATES FOR IMPLAN DATA IN GTAPinGAMS FORMAT
+ 521  *------------------------------------------------------------
+ 522  parameter
+ 523          taxrevenue(g,rs)        tax revenue by institution
+ 524          trevbtax(s,pub)         "Tax revenue from output taxes"
+ 525          pitx(f,g,rs)            "Average personal income tax rate"
+ 526          pitx0(f,g,rs)           "Benchmark average personal income tax rate"
+ 527          hhpitx(s,h)             "Personal income tax payements (pitx)"
+ 528          taxrevhhpitx(s,pub)     "Tax revenue from personal income (pitx)"
+ 529          trevfica(s,pub)         "Tax revenue from social security taxes"
+ 530          trevficaw(s,pub)        "Tax revenue from social security taxes (employee)"
+ 531          trevficaf(s,pub)        "Tax revenue from social security taxes (employer)"
+ 532          txcorp(s)               "Capital income tax rate (based on corporate profits tax)"
+ 533          txcorp0(s)              "Capital income tax rate (based on corporate profits tax)"
+ 534          hhctax(s,h)             "Capital income tax payments (based on corporate profits tax)"
+ 535          trevctax(s,pub)         "Tax revenue from capital income tax";
+ 536   
+ 537   
+ 538  parameter trevrto tax revenue from output tax - was trevbtax;
+ 539   
+GAMS Rev 236  WIN-VS8 23.6.5 x86/MS Windows                                                        10/17/11 19:44:45 Page 9
+read an INTEGRATED MODEL dataset
+C o m p i l a t i o n
+
+
+ 540  * -- OUTPUT TAX
+ 541  * used to be tx(x,s)
+ 542  rto(i,s)$vom(i,s) = btax(i,s) / vom(i,s) ;
+ 543  rto0(i,s) = rto(i,s);
+ 544   
+ 545   
+ 546  * tax revenues accrue to different governement agents
+ 547  * this information is still in btaxincome at this point,
+ 548  * in model it will be included in demand blocks for gov agents, and thus needs needs to be kept
+ 549  trevrto(s,pub) = sum(t_, btaxincome(pub,t_,s));
+ 550   
+ 551  display rto,trevrto;
+ 552  * output taxes implies by IMPLAN are higher than those in GTAP, most revenues go to "STG"
+ 553   
+ 554  * -- LABOR TAX
+ 555  * based on FICA tax rates:
+ 556  * note: sstw and sstf are the only accounts in evom for labor, gov
+ 557  trevficaw(s,pub) = evom("lab",s,pub,"sstw");
+ 558  trevficaf(s,pub) = evom("lab",s,pub,"sstf");
+ 559  trevfica(s,pub) = trevficaw(s,pub) + trevficaf(s,pub);
+ 560  evom("lab",s,pub,t_) = 0;
+ 561  * this was purpusely not included in vfms.. so ok
+ 562   
+ 563  rtf("lab",i,s) = sum(pub,trevfica(s,pub))/(sum(i.local,vfm("lab",i,s))-sum(pub,trevfica(s,pub)));
+ 564  rtf0("lab",i,s) = rtf("lab",i,s);
+ 565  * adjust labor flows
+ 566  vfm("lab",i,s) = vfm("lab",i,s) / (1+rtf("lab",i,s));
+ 567  display rtf;
+ 568  * not to different from GTAP values, good
+ 569   
+ 570   
+ 571  * -- CAPITAL INCOME TAX
+ 572  * based on corporate profits tax payments:
+ 573   
+ 574  * from Sebastian:       NB: Imputed capital income tax based on IMPLAN data seems to be to low.
+ 575  *           Note that we can calibrate to any tax rate through appropriate
+ 576  *           scaling of vtrn(s,"ent","ctax").
+ 577   
+ 578  * calculate capital tax payments, distribute them to household based on share of capital payments.
+ 579  hhctax(s,h) = vtrn(s,"ent","ctax") * vfms("cap",h,s)/sum(h.local,vfms("cap",h,s));
+ 580  * negative values
+ 581   
+ 582  * ASSUMPTION : all revenue accrues to FDG?
+ 583  trevctax(s,"fdg") = -vtrn(s,"ent","ctax");
+****                 $170
+ 584  vtrn(s,"ent","ctax") = 0;
+ 585   
+ 586  * ctax has no equivalent for gov entities (or households) in the vtrn parameter..
+ 587  * thus, taking it out of ctax changes balance of transfers.
+ 588  * ASSUMPTION : add it to FDG
+ 589  vtrn(s,"fdg","ctax") = - trevctax(s,"fdg");
+****             $170                         $170
+ 590  * this is done to keep sum of vtrn = current balance..
+ 591   
+ 592  totaltransfers(s,"after ctax change") = sum((t_,ins), vtrn(s,ins,t_));
+ 593   
+ 594  * calculate capital income tax rates (capital tax payments over capital ownwership)
+ 595  rtf("cap",i,s) = sum(pub,trevctax(s,pub)) / (sum(h,vfms("cap",h,s))-sum(pub,trevctax(s,pub)));
+ 596  rtf0("cap",i,s)= rtf("cap",i,s);
+ 597   
+ 598  * Capital income tax seems high, compared to GTAP !
+ 599  * Q for sebastian : why do you say this is low?
+ 600   
+ 601  * adjust capital flows:
+ 602  vfm("cap",i,s) = vfm("cap",i,s) / (1+rtf("cap",i,s));
+ 603  vfms("cap",h,s) = vfms("cap",h,s) + hhctax(s,h);
+ 604  *vfm(f,g,rs)$(vfm(f,g,rs) lt 1e-12) = 0;
+ 605   
+ 606   
+ 607  balancecheck("sectors",i,s)$(
+ 608           sum(j, vdfm(j,i,s)) + sum((j,trd),vifm(j,i,s,trd)) + sum(f, vfm(f,i,s)*(1+rtf0(f,i,s)))  + sum(ins, evpm(s,i
+      ,ins)))
+ 609                   =  (vom(i,s)*(1-rto0(i,s))) / (
+GAMS Rev 236  WIN-VS8 23.6.5 x86/MS Windows                                                       10/17/11 19:44:45 Page 10
+read an INTEGRATED MODEL dataset
+C o m p i l a t i o n
+
+
+ 610           sum(j, vdfm(j,i,s)) + sum((j,trd),vifm(j,i,s,trd)) + sum(f, vfm(f,i,s)*(1+rtf0(f,i,s)))  + sum(ins, evpm(s,i
+      ,ins)));
+ 611  display balancecheck;
+ 612  *ok here still
+ 613   
+ 614  *  -- AVERAGE PERSONAL INCOME TAX (not in GTAP)
+ 615  *        this is not in GTAP, not equivalent to labor tax
+ 616   
+ 617  hhpitx(s,h) = vtrn(s,h,"pitx");
+ 618  taxrevhhpitx(s,pub) = vtrn(s,pub,"pitx");
+ 619  vtrn(s,h,"pitx") = 0;
+ 620  vtrn(s,pub,"pitx") = 0;
+ 621  * this two changes cancel each other out, no difference in total tranfers after this
+ 622   
+ 623  set ftax(f) Factors that subejct to personal income tax /cap,lab/;
+ 624   
+ 625  *       Initialize personal income tax rate parameter:
+ 626  pitx(f,h,s) = 0;
+ 627  pitx0(f,h,s) = 0;
+ 628   
+ 629  *       Set personal income taxes for capital and labor:
+ 630  pitx(ftax,h,s) = abs(hhpitx(s,h)) / (vfms("lab",h,s)+vfms("cap",h,s));
+ 631  pitx0(ftax,h,s) = pitx(ftax,h,s);
+ 632   
+ 633  display pitx, taxrevhhpitx;
+ 634   
+ 635  totaltransfers(s,"after pitx change") = sum((t_,ins), vtrn(s,ins,t_));
+ 636  display totaltransfers;
+ 637   
+ 638  * -- TAX REVENUES
+ 639  *       unified parameter for tax revenue in US states:
+ 640  taxrevenue(pub,s) = trevrto(s,pub) + taxrevhhpitx(s,pub) + trevfica(s,pub) + trevctax(s,pub) + traderevenue(pub,s);
+ 641   
+ 642  *       for gtap regions.. need to this as well, as we are using same structure
+ 643  taxrevenue("g",r) =  sum(j,  vom(j,r)*rto(j,r)) +
+ 644   sum(g,  sum(i, vdfm(i,g,r)*rtfd(i,g,r) + vifm(i,g,r,"ftrd")*rtfi(i,g,r)))
+ 645          + sum(g,  sum(f, vfm(f,g,r)*rtf(f,g,r)))
+ 646          + sum((i,rs), rtms(i,rs,r) *  (vxmd(i,rs,r) * (1-rtxs(i,rs,r)) + sum(j,vtwr(j,i,rs,r))))
+ 647          - sum((i,rs), rtxs(i,r,rs) * vxmd(i,r,rs));
+ 648   
+ 649   
+ 650  parameter gtapbalance;
+ 651  gtapbalance(r) = vom("c",r) + vom("g",r) + vom("i",r) -sum((pb,trd), vb(pb,trd,r)) - sum((t_,f), evom(f,r,"c",t_)) -t
+      axrevenue("g",r);
+ 652  display gtapbalance;
+ 653   
+ 654   
+ 655  *------------------------------------------------------------------
+ 656  * -- CURRENT ACCOUNT DEFICIT
+ 657   
+ 658  * ASSUMPTION : FOR NOW, ASSUME ONLY GOVERNMENT FINANCES CURRENT ACCOUNT DEFICITS IN STATES
+ 659  * in theory, it might be possible to determine from the VTRN parameter which parts go to
+ 660  * households and which part goes to government entities..
+ 661  * we singled out two potential accounts which could correspond to current account " TRNS" AND "SRPL"
+ 662  * but where not able to identify which one exactly.. work on this maybe
+ 663  * for now, assign deficit to FDG
+ 664   
+ 665  * should be able to add deficits for states and get US deficit ? I think so..
+ 666  * current account deficit for US is supposed to be 566.288
+ 667   
+ 668  * calculate current account deficit for states (deficit both to states and other regions)
+ 669  * ASSUMPTION : assign trade balance to this
+ 670  * thus the 40 billion transfers to the US do not appear in the model at this point
+ 671   
+ 672  vb("fdg","ftrd",s) =   sum((i,r),vxmd(i,r,s))  - sum((i,r),vxmd(i,s,r));
+ 673   
+ 674  vb("fdg","dtrd",s) =   sum((i,ss),vxmd(i,ss,s))  - sum((i,ss),vxmd(i,s,ss));
+ 675  vb("all", "all","chksum") = sum((g,rs,trd), vb(g,trd,rs));
+ 676  display vb;
+ 677  * the 40 remaining are the "other transfers" which constitute the difference beteween CA and TB in the USA
+ 678  * VB in states correpsonds to the sum of tranfers
+ 679   
+ 680   
+GAMS Rev 236  WIN-VS8 23.6.5 x86/MS Windows                                                       10/17/11 19:44:45 Page 11
+read an INTEGRATED MODEL dataset
+C o m p i l a t i o n
+
+
+ 681  * sum of transfers should be equal to current account deficits, check this:
+ 682  parameter testvb;
+ 683  testvb("transfers",s) =   sum((t_,ins), vtrn(s,ins,t_)) / sum((g,trd), vb(g,trd,s));
+ 684  display testvb;
+ 685  *yes
+ 686   
+ 687  * -----------------------------------------------------------------
+ 688  * ADJUSTMENT PARAMETERS
+ 689   
+ 690  *  Update income adjustment parameters:
+ 691  hhadj(h,s) = hhadj(h,s) - hhpitx(s,h) - hhctax(s,h);
+ 692  govadj(pub,s) = govadj(pub,s) -taxrevenue(pub,s) - sum((trd), vb(pub,trd,s)) ;
+ 693  * this means doing :
+ 694  *govadj(s,pub) = govadj(s,pub) - trevrto(s,pub) - taxrevhhpitx(s,pub)
+ 695  *               - trevfica(s,pub) - trevctax(s,pub) -  traderevenue(pub,s);
+ 696   
+ 697  display hhadj, govadj;
+ 698  * hhadj positive, govadj negative for fdg, positive for stg
+ 699  * hhadj and govadj include the current account deficit
+ 700   
+ 701  * --- CHECK BALANCE AGAIN HERE:
+ 702  balancecheck("households",hh,s) =
+ 703          (sum(f, vfms(f,hh,s) * (1-pitx(f,hh,s))) - vinvs(hh,s) + hhadj(hh,s)  )
+ 704                  / (vom(hh,s));
+ 705   
+ 706  balancecheck("pub",pub,s)$vom(pub,s) =
+ 707          (govadj(pub,s) +taxrevenue(pub,s) +sum((g,trd), vb(g,trd,s)) )
+ 708          / vom(pub,s);
+ 709   
+ 710  display balancecheck;
+ 711  *HERE NOT OK ANY MORE
+ 712   
+ 713  * -----------------------------------------------------------------
+ 714  * GTAP DATA ADPTATION :
+ 715   
+ 716  * assign per household values to gtap regions:
+ 717  vfms(f,"c",r) = sum((t_),evom(f,r,"c",t_));
+ 718  vinvs("c",r) = vom("i",r);
+ 719   
+ 720  * implicit (tax) transfer from private to public demand:
+ 721  * include these within the adjustment hhadjparameters:
+ 722  hhadj("c",r) =   vom("c",r) +  vom("i",r) - sum((f,t_), evom(f,r,"c",t_));
+ 723  govadj("g",r) =  - hhadj("c",r);
+ 724  display hhadj;
+ 725  display govadj;
+ 726   
+ 727   
+ 728   
+ 729  * define CIF trade flows out of US states
+ 730  * !!! USE VIM FOR NOW, NEEDS CLEAN-UP
+ 731  * use "dtrd" in vim for GTAP regions, as meaning "from US states"
+ 732  *parameter usexportscif;
+ 733  *usexportscif(i,rs) = sum(s,pvxmd(i,s,rs) * vxmd(i,s,rs)) + sum((j,s), vtwr(j,i,s,rs));
+ 734  * use vim(i,rs,"dtrd") instead of this :
+ 735   
+ 736  vim(i,r,"dtrd") = sum(s,pvxmd(i,s,r) * vxmd(i,s,r)) + sum((j,s), vtwr(j,i,s,r)*pvtwr(i,s,r));
+ 737   
+ 738   
+ 739  *       Resource rents by household by type:
+ 740   
+ 741  parameter vfmresh "Resource rents by household by sector";
+ 742  vfmresh(j,c,rs)$sum(j.local,vfm("res",j,rs)) = vfms("res",c,rs)*vfm("res",j,rs)/sum(j.local,vfm("res",j,rs));
+ 743   
+ 744   
+ 745  *       CHECK ZERO PROFITS FOR ELECTRICITY SECTOR:
+ 746   
+ 747  parameter zprf_ele;
+ 748   
+ 749  zprf_ele(rs) = vom("ele",rs) * (1-rto("ele",rs))
+ 750                  - sum(i,vafm(i,"ele",rs))
+ 751                  - sum(f,vfm(f,"ele",rs)*(1+rtf(f,"ele",rs)));
+ 752   
+ 753  display zprf_ele;
+GAMS Rev 236  WIN-VS8 23.6.5 x86/MS Windows                                                       10/17/11 19:44:45 Page 12
+read an INTEGRATED MODEL dataset
+C o m p i l a t i o n
+
+
+ 754   
+ 755  *       SEPARATE NUCLEAR AND HYDRO FROM ELECTRICITY GENERATION:
+ 756   
+ 757  parameter
+ 758          vomnh           Output of nuc and hyd
+ 759          vfmnh           Factor inputs for nuc and hyd
+ 760          vdfmnh          Inputs for nuc and hyd ;
+ 761   
+ 762  set nh Nuclear and hydro  /nuc,hyd/;
+ 763   
+ 764  parameter chkvfm;
+ 765  chkvfm(f,rs) = 1;
+ 766   
+ 767  set iter Iterations to avoid negative imputed vfm after including nuclear and hydro /1*100/;
+ 768   
+ 769  parameter shrnhoutput,idneg,idneglog,vom__,vfm__,vafm__,taxrev0;
+ 770   
+ 771  idneg(rs) = 0;
+ 772  vom__(i,rs) = vom(i,rs);
+ 773  vfm__(f,i,rs) = vfm(f,i,rs);
+ 774  vafm__(i,g,rs) = vafm(i,g,rs);
+ 775   
+ 776  taxrev0(f,rs,"b4",c) = vfms(f,c,rs)*pitx(f,c,rs);
+ 777   
+ 778  loop(iter,
+ 779   
+ 780  *       Reduce share of nuclear and hydro if imputed capital demand for non-nuclear+hydro is negative:
+ 781  shrnh(nh,"output",rs)$idneg(rs) = shrnh(nh,"output",rs) * (1-0.01*ord(iter));
+****                                        $141
+ 782   
+ 783  *       Iteration log:
+ 784  shrnhoutput(nh,rs,iter) = shrnh(nh,"output",rs);
+ 785   
+ 786  *       Nuclear and hydro output:
+ 787  vomnh(nh,rs) =  shrnh(nh,"output",rs) * vom__("ele",rs);
+ 788   
+ 789  *       Input demands:
+ 790  vfmnh("lab",nh,rs) = shrnh(nh,"lab",rs) * vomnh(nh,rs) * (1-rto("ele",rs))/(1+rtf("lab","ele",rs));
+ 791  vfmnh("cap",nh,rs) = shrnh(nh,"cap",rs) * vomnh(nh,rs) * (1-rto("ele",rs))/(1+rtf("cap","ele",rs));
+ 792  vfmnh("res",nh,rs) = shrnh(nh,"res",rs) * vomnh(nh,rs) * (1-rto("ele",rs))/(1+rtf("cap","ele",rs));
+ 793  vdfmnh(i,nh,rs)$vafm__(i,"ele",rs) = vafm__(i,"ele",rs)/sum(i.local,vafm__(i,"ele",rs)) *  sum(i.local,shrnh(nh,i,rs)
+      ) * vomnh(nh,rs)* (1-rto("ele",rs));
+ 794   
+ 795  *       Recalibrate output, capital, and labor, srv, and oth for electricity generated from fossil fuel:
+ 796  vom("ele",rs) = vom__("ele",rs) - sum(nh,vomnh(nh,rs));
+ 797  vfm("lab","ele",rs) = vfm__("lab","ele",rs) - sum(nh,vfmnh("lab",nh,rs));
+ 798  vfm("cap","ele",rs) = vfm__("cap","ele",rs) - sum(nh,vfmnh("cap",nh,rs))-sum(nh,vfmnh("res",nh,rs));
+ 799  vafm(i,"ele",rs) = vafm__(i,"ele",rs) - sum(nh,vdfmnh(i,nh,rs));
+ 800   
+ 801  *       Check sign of imputed values:
+ 802  chkvfm(f,rs) = vfm(f,"ele",rs)$(vfm(f,"ele",rs) lt 0);
+ 803  chkvfm(i,rs) = vafm(i,"ele",rs)$(vafm(i,"ele",rs) lt 0);
+ 804   
+ 805  *       Identify negative values and record log:
+ 806  idneg(rs) = 1$(chkvfm("cap",rs) lt 0 or chkvfm("lab",rs) lt 0 or sum(i,chkvfm(i,rs)) lt 0);
+ 807  idneglog(rs,iter) = idneg(rs);
+ 808   
+ 809  );
+ 810   
+ 811  shrnhoutput(nh,rs,"%dev")$shrnhoutput(nh,rs,"1") = 100*(shrnhoutput(nh,rs,"100") / shrnhoutput(nh,rs,"1")-1);
+ 812   
+ 813  display idneg,idneglog,shrnhoutput;
+ 814   
+ 815  abort$(smin((rs,f),chkvfm(f,rs)) lt -1e-12) "Imputed vfm is negative (see mergedata.gms)",chkvfm;
+ 816  abort$(smin((rs,i),chkvfm(i,rs)) lt -1e-12) "Imputed vafm is negative (see mergedata.gms)",chkvfm;
+ 817   
+ 818  *       Define resource rents for nuc and hyd:
+ 819   
+ 820  parameter vfmsnh        Base year rents for nuclear and hydro resource;
+ 821   
+ 822  *       Use capital income share to distribute rents among households within a given US state/region.
+ 823   
+ 824  vfmsnh(nh,c,rs) = vfms("cap",c,rs)/sum((c.local),vfms("cap",c,rs)) * vfmnh("res",nh,rs);
+GAMS Rev 236  WIN-VS8 23.6.5 x86/MS Windows                                                       10/17/11 19:44:45 Page 13
+read an INTEGRATED MODEL dataset
+C o m p i l a t i o n
+
+
+ 825   
+ 826  *       Reduce capital endowments to accommodate resource supplies for nuc and hyd:
+ 827   
+ 828  vfms("cap",c,rs) = vfms("cap",c,rs) - sum(nh,vfmsnh(nh,c,rs));
+ 829   
+ 830  *       Adjust personal income rate on capital to generate benchmark tax revenue:
+ 831   
+ 832  taxrev0(f,rs,"after",c) = vfms(f,c,rs)*pitx(f,c,rs);
+ 833   
+ 834  pitx("cap",c,rs)$vfms("cap",c,rs) = taxrev0("cap",rs,"b4",c)/vfms("cap",c,rs);
+ 835  pitx0("cap",c,rs) = pitx("cap",c,rs);
+ 836   
+ 837  *--------------------------------------------------------------------------
+ 838  *       Do a CES calibration to a given price supply elasticity for nuclear and hydro:
+ 839   
+ 840  PARAMETER neta          Price elasticity of supply for nuclear,
+ 841            heta          Price elasticity of supply for hydro,
+ 842            sharenh       Cost share of nuclear or hydro
+ 843            sigmanh       Elasticity of substitution between value added and nuclear or hydro resource;
+ 844   
+ 845  *       Price supply elasticity from EPPA 4 (assumed to be identical across all US states):
+ 846   
+ 847  neta(rs)=0.5;
+ 848  neta("usa")=0.25;
+ 849  neta("eur")=0.50;
+ 850  neta("jpn")=1.00;
+ 851  neta("can")=0.40;
+ 852  neta("rus")=0.25;
+ 853  neta("roe")=0.25;
+ 854  neta("asi")=0.60;
+ 855  neta("chn")=0.60;
+ 856  neta("ind")=0.60;
+ 857   
+ 858  heta(rs)=0.5;
+ 859  heta("jpn")=0.25;
+ 860  heta("anz")=0.25;
+ 861   
+ 862  sharenh(nh,rs)$vomnh(nh,rs) = vfmnh("res",nh,rs)/vomnh(nh,rs);
+ 863  sigmanh("nuc",rs)$(1-sharenh("nuc",rs))= neta(rs)*sharenh("nuc",rs)/(1-sharenh("nuc",rs));
+ 864  sigmanh("hyd",rs)$(1-sharenh("hyd",rs))= neta(rs)*sharenh("hyd",rs)/(1-sharenh("hyd",rs));
+ 865   
+ 866  display sigmanh;
+ 867   
+ 868  *       Zero profit for nuclear and hydro electicity generation:
+ 869   
+ 870  parameter zprf_nuchyd;
+ 871  zprf_nuchyd(rs,nh) = vomnh(nh,rs)*(1-rto("ele",rs))
+ 872                                  - vfmnh("cap",nh,rs)*(1+rtf("cap","ele",rs))
+ 873                                  - vfmnh("lab",nh,rs)*(1+rtf("lab","ele",rs))
+ 874                                  - vfmnh("res",nh,rs)*(1+rtf("cap","ele",rs))
+ 875                                  - sum(i,vdfmnh(i,nh,rs));
+ 876  display zprf_nuchyd;
+ 877   
+ 878  *       Zero profit for non-nuclear+hydro electricity:
+ 879  zprf_ele(rs) = vom("ele",rs) * (1-rto("ele",rs))
+ 880                  - sum(i,vafm(i,"ele",rs))
+ 881                  - sum(f,vfm(f,"ele",rs)*(1+rtf(f,"ele",rs)));
+ 882   
+ 883   
+ 884  display zprf_ele;
+ 885   
+ 886  abort$(abs(smin(rs,sum(nh,zprf_nuchyd(rs,nh))+zprf_ele(rs))) gt 1e-8) "Zero profit conditions for electricity product
+      ion does not hold (see loaddata.gms)";
+ 887   
+ 888   
+ 889  display rtf,rto;
+ 890   
+ 891  * -----------------------------------------------------------------
+ 892  * SOME BASIC ENERGY STUFF
+ 893   
+ 894  set
+ 895          fe(i)   Fossil fuels       /oil, gas, col/     ,
+ 896          ene(g)  All energy goods /cru,col,oil,gas,ele/ ,
+GAMS Rev 236  WIN-VS8 23.6.5 x86/MS Windows                                                       10/17/11 19:44:45 Page 14
+read an INTEGRATED MODEL dataset
+C o m p i l a t i o n
+
+
+ 897          en(i)   Energy goods (including crude)/cru,col,oil,gas/ ,
+ 898          e(g)    Energy inputs        /col,oil,gas,ele/   ,
+ 899          xe(i)   Exhaustible energy    /col,cru,gas/
+ 900  *       border(i,rsrs,rs)  Country pairs with border adjustment
+ 901  ;
+ 902   
+ 903   
+ 904  * -----------------------------------------------------------------
+ 905  * CRUDE OIL TREATMENT
+ 906   
+ 907  parameter       vcrud(i,rs)     Net value of crude oil demand,
+ 908                  vcrus(g,rs)     Net value of crude oil supply,
+ 909                  vtwrcru(j,i,rs) Value of crude oil transport costs,
+ 910                  rtocru(g,rs)    Benchmark tax rate on crude oil supply,
+ 911                  rtcru0(i,rs)    Benchmark tax rate on crude oil,
+ 912                  rtcru(i,rs)     Counterfactual tax rate on crude oil;
+ 913   
+ 914  loop(i$sameas(i,"cru"),
+ 915   
+ 916  *       Value of crude supply (net export subsidy):
+ 917   
+ 918    vcrus(i,rs) = vom(i,rs) - sum(rsrs, vxmd(i,rs,rsrs)*rtxs(i,rs,rsrs));
+ 919   
+ 920  *       Crude oil output tax net export subsidy:
+ 921    rtocru(i,rs)$vcrus(i,rs) = (rto(i,rs)*vom(i,rs)-sum(rsrs, vxmd(i,rs,rsrs)*rtxs(i,rs,rsrs)))/vcrus(i,rs);
+ 922   
+ 923  *       Value of crude oil demand net subsidy and tariff charges:
+ 924    vcrud(i,rs) = vdm(i,rs) + sum(rsrs,vxmd(i,rsrs,rs)*(1-rtxs(i,rsrs,rs)));
+ 925   
+ 926  *       Value of transport inputs to crude imports in region rs:
+ 927    vtwrcru(j,i,rs) = sum(rsrs,vtwr(j,i,rsrs,rs));
+ 928   
+ 929  *       Benchmark tax+tariff rate on crude oil demand
+ 930  *       in region rs:
+ 931    rtcru0(i,rs)$(vcrud(i,rs)+sum(j,vtwrcru(j,i,rs))) = (rtda0(i,rs)*vdm(i,rs)+rtia0(i,rs,"ftrd")*vim(i,rs,"ftrd") +
+ 932                  sum(rsrs,rtms(i,rsrs,rs)*(1-rtxs(i,rsrs,rs))*vxmd(i,rsrs,rs)) +
+ 933                  sum((j,rsrs), rtms(i,rsrs,rs)*vtwr(j,i,rsrs,rs)))
+ 934                  / (vcrud(i,rs)+sum(j,vtwrcru(j,i,rs)));
+ 935   
+ 936    vdm(i,rs) = 0;
+ 937    vim(i,rs,"ftrd") = 0;
+ 938   vim(i,rs,"dtrd") = 0;
+ 939   
+ 940  );
+ 941  rtcru(i,rs) = rtcru0(i,rs);
+ 942  display rtcru;
+ 943   
+ 944  parameter crudeuse      Crude oil inputs;
+ 945  crudeuse("value",g,rs) = vafm("cru",g,rs);
+ 946  crudeuse("share",g,rs)$(vafm("cru",g,rs)+vafm("oil",g,rs))
+ 947          = vafm("cru",g,rs)/(vafm("cru",g,rs)+vafm("oil",g,rs))
+ 948  display crudeuse;
+ 949   
+ 950  parameter       crudeshare      Crude input value share;
+ 951  crudeshare(rs,g)$vom(g,rs) = vafm("cru",g,rs)/(vom(g,rs)*(1-rto(g,rs)));
+ 952  display crudeshare;
+ 953   
+ 954  *-----------------------------------------------
+ 955  * MODEL SET-UP STUFF :
+ 956  * -----------------------------------------------
+ 957  *       Set up logical arrays defining model sparsity:
+ 958   
+ 959  set     state(rs)       flag for US states
+ 960          flag(g,rs)      flag set for production blocks
+ 961          cons(g,rs)      flag set for private demand
+ 962          gov(g,rs)       flag set for public demand
+ 963          pcarbsink(g,rs) flag which defines which gov entities receive carbon permits
+ 964          yy(g,rs)                Sectors which are in the model
+ 965          pp(g,rs)                Commodities with domestic markets
+ 966          cru(g,rs)        Crude oil sector
+ 967          oil(g,rs)        Oil refining sector
+ 968          oth(g,rs)        Other sectors
+ 969          col(g,rs)  Coal extraction and distribution sector
+GAMS Rev 236  WIN-VS8 23.6.5 x86/MS Windows                                                       10/17/11 19:44:45 Page 15
+read an INTEGRATED MODEL dataset
+C o m p i l a t i o n
+
+
+ 970          gas(g,rs)  Gas extraction and distribution sector
+ 971          ele(g,rs)  Electricity
+ 972          elec(i)    Electricity
+ 973          enoe(i)   /col,cru,oil,gas/
+ 974          oill(i)         "Refined oil"                           /oil/
+ 975          gass(i)         "Natural gas"                           /gas/
+ 976          coll(i)         "Coal"                                  /col/
+ 977          noe(i)
+ 978          ne(i)           "Energy w/o CRU"                        /col,oil,gas,ele/
+ 979          ener(i)         "Energy markets"
+ 980                          /  gas
+ 981                             ele
+ 982                             oil
+ 983                             col
+ 984                             cru      /
+ 985  ;
+ 986   
+ 987  yy(g,rs) = yes$(vom(g,rs)>1e-10);
+ 988  cru("cru",rs) = yes$(vom("cru",rs) > 1e-10);
+ 989  ele("ele",rs) = yes$vom("ele",rs);
+ 990  oth(yy(g,rs)) = yes$((not cru(g,rs))$(not ele(g,rs)));
+ 991  oil("oil",rs) = yes$vom("oil",rs);
+ 992  col("col",rs) = yes$vom("col",rs);
+ 993  gas("gas",rs) = yes$vom("gas",rs);
+ 994  elec("ele") = yes;
+ 995  noe(i) = yes$((not enoe(i))$(not elec(i)));
+ 996   
+ 997  pp(g,rs)$(not cru(g,rs)) = yes$vom(g,rs);
+ 998  display pp;
+ 999   
+1000  state(s) = yes;
+1001   
+1002  flag(g,rs)$(vom(g,rs)>1e-10) = yes;
+1003  *flag("c",s) = no;
+1004  *flag("g",s) = no;
+1005  display flag;
+1006   
+1007   
+1008  cons(h,s) = yes;
+1009  cons("c",r) = yes;
+1010  display cons;
+1011   
+1012   
+1013  gov(pub,s) = yes;
+1014  gov("g",r) = yes;
+1015  display gov;
+1016   
+1017  * QUESTION : where do carbon permit revenues accrue to ? for now, fdg
+1018  *  made set of governement receivers of carbon permit revenues
+1019   
+1020  pcarbsink("fdg",s) = yes;
+****                $170
+1021  pcarbsink("g",r) = yes;
+1022  display pcarbsink;
+1023   
+1024  * Flag for mobile capital across US regions:
+1026   
+1027  set mk(f,rs)    "Flag for mobile capital across US regions --default yes";
+1028   
+1029  mk("cap",s)=yes;
+1030   
+1031  *  ------  ELASTICITIES -----------
+1032  parameter
+1033                  esub(g,rs)              Top-level elasticity (energy versus non-energy),
+1034                  esubn(g,rs)             Top-level elasticity (among non-energy goods),
+1035                  esubkl(g,rs)            Capital-labor elasticity
+1036                  esubmusa(i,rs)          Elasticity of substitution between US sources
+1037                  esubdusa(i,rs)          Elasticity of substitution between local and other State imports (only valid 
+      for US states) ;
+1038   
+1039  esub(g,rs)    = 0.5;
+1040  esubn(c,rs) = 1.0;
+1041  esubkl(g,rs)  = esubva(g);
+GAMS Rev 236  WIN-VS8 23.6.5 x86/MS Windows                                                       10/17/11 19:44:45 Page 16
+read an INTEGRATED MODEL dataset
+C o m p i l a t i o n
+
+
+1042   
+1043  * elasticity of substitution of imports  from between US states
+1044  * we do not have econometric estimates of this, but they should be higher than between GTAP regions
+1045  esubmusa(i,rs) = 2*esubm(i);
+1046   
+1047  * elasticity of substitution between goods produced within state and from other US states
+1048  * we do not have econometric estimates of this, but should be quite high
+1049  *esubdusa(i,s) =  4 * esubd(i);
+1050  * SEE BELOW
+1051   
+1052  * -- BORDER EFFECT CALIBRATION
+1053   
+1054  parameter       bordereffect    using AvW2003 estimate /10.5/
+1055                  shr_mr(i,r,s)   share of each importer r in international imports
+1056                  shr_m(i,s)      share of international imports
+1057                  shr_musa(i,s)   share of domestic imports in US consumption
+1058                  shr_ms(i,ss,s)  share of each domestic importer in domestic imports
+1059                  eta_mr(i,r,s)   price elasticity of imports from r
+1060                  eta_m(i,s)      price elasticity of international import aggregate
+1061                  eta_musa(i,s)   CALIBRATED price elasticity of domestic import aggregate
+1062  ;
+1063   
+1064  shr_mr(i,r,s)$sum(r.local,vxmd(i,r,s)) = vxmd(i,r,s) / sum(r.local,vxmd(i,r,s));
+1065  shr_m(i,s)$vam(i,s) = vim(i,s,"ftrd") / vam(i,s);
+1066  shr_musa(i,s)$(vim(i,s,"dtrd") + vdm(i,s)) = vim(i,s,"dtrd") /(vim(i,s,"dtrd") + vdm(i,s)) ;
+1067  shr_ms(i,ss,s)$sum(ss.local, vxmd(i,ss,s)) = vxmd(i,ss,s) /     sum(ss.local, vxmd(i,ss,s)) ;
+1068   
+1069  eta_mr(i,r,s) = esubm(i) * (shr_mr(i,r,s) -1) + esubd(i)*(shr_mr(i,r,s)*shr_m(i,s) - shr_mr(i,r,s));
+1070   
+1071  eta_m(i,s)$shr_m(i,s) = esubd(i)*(shr_m(i,s) - 1);
+1072  *eta_musa(i,s) = esubdusa(i) * (shr_musa(i,s)-1) + esubd(i) * ((1- shr_m(i,s))*shr_musa(i,s) -shr_musa(i,s));
+1073   
+1074  * price elasticity of domestic import aggregate is a function of the price elasticity of international import aggrega
+      te
+1075  eta_musa(i,s) = eta_m(i,s)*bordereffect;
+1076   
+1077  * use it to calibrate esubdusa :
+1078  *esubdusa(i,s)$(shr_musa(i,s) -1) = (eta_musa(i,s) - esubd(i)*(((1-shr_m(i,s))*shr_musa(i,s)) - shr_musa(i,s))) / (sh
+      r_musa(i,s)-1);
+1079  esubdusa(i,s)$(shr_musa(i,s) -1) = (eta_musa(i,s) + esubd(i)*shr_m(i,s)*shr_musa(i,s)) / (shr_musa(i,s)-1);
+1080   
+1081   
+1082  display shr_mr, shr_m, eta_mr, eta_m, eta_musa, esubm, esubd, esubdusa;
+1083   
+1084   
+1085   
+1086   
+1087  * -- RESOURCE SUPPLY CALIBRATION
+1088  *       TREAT RESOURCES AS A SPECIFIC FACTOR:
+1089  *evom("res",rs) = 0;
+1090   
+1091  parameter       etaen(g)        Elasticity of supply /
+1092                          col     1
+1093                          gas     0.25,
+1094                          cru     0.5 /;
+1095   
+1096  parameter       rvshare(f,rs,g) Resource value share;
+1097  rvshare("res",rs,en(i))$vom(i,rs) = vfm("res",i,rs)*(1+rtf0("res",i,rs))/vom(i,rs);
+1098  rvshare("cap",rs,en(i))$vom(i,rs) = vfm("cap",i,rs)*(1+rtf0("cap",i,rs))/vom(i,rs);
+1099  display rvshare;
+1100   
+1101  *       Elasticity of substitution is calibrated to provide the
+1102  *       specified elasticity of supply:
+1103   
+1104  parameter       esubfe(rs,g)    Elasticity of substitution in fossil energy;
+1105  esubfe(rs,g)$(1-rvshare("res",rs,g))  =
+1106          rvshare("res",rs,g)/(1-rvshare("res",rs,g)) * etaen(g);
+1107  display esubfe;
+1108   
+1109  *       Elasticity of substitution for cru, gas and col:
+1110   
+1111  esub(xe,r) = esubfe(r,xe);
+1112  *esubm(i) = min(esubm(i),10);
+GAMS Rev 236  WIN-VS8 23.6.5 x86/MS Windows                                                       10/17/11 19:44:45 Page 17
+read an INTEGRATED MODEL dataset
+C o m p i l a t i o n
+
+
+1113  *esubd(i) = min(esubd(i),esubm(i)/2);
+1114   
+1115  parameter esube(g,rs) Elasticity of substitution between energy sources;
+1116   
+1117  esube(c,rs) = 0.25;
+1118  esube(ene,rs) = 0;
+1119  esube(g,rs)$((not ene(g))$(not c(g))) = 1;
+1120   
+1121  *       Elasticities of substitution specific for electricity sector:
+1122  parameter
+1123          sigma_enoe      "EOS bw electricity and non-electricity"
+1124          sigma_cog       "EOS bw coal/oil and natural gas"
+1125          sigma_co        "EOS bw coal and oil";
+1126   
+1127  sigma_enoe(rs) = 0.5;
+1128  sigma_cog(rs) = 1;
+1129  sigma_co(rs) = 0.3;
+1130   
+1131  $include consistency_check
+****                           $282
+1132   
+1133  *       1 mtoe = 39652608749183 btu
+1134   
+1135  efd(r,i) = evd(i,"c",r) * 39652608749183 / 1e15;
+1136  eind(r,i,j) = evd(j,i,r) * 39652608749183 / 1e15;
+1137   
+1138  eimp(r,i,"ftrd") = sum(rr,evt(i,rr,r) * 39652608749183 / 1e15);
+1139  eexp(r,i,"ftrd") = sum(rr,evt(i,r,rr) * 39652608749183 / 1e15);
+1140   
+1141  parameter eprod Energy production by region;
+1142   
+1143  eprod(i,s) = stey0(s,i);
+****                   $141
+1144  eprod(j,r) = sum(i, eind(r,i,j))+efd(r,j)+sum(trd,eexp(r,j,trd)+eimp(r,j,trd));
+1145   
+1146  display efd,eind,eimp,eprod;
+1147   
+1148  parameter euse  "Energy use (quad btu)";
+1149   
+1150  euse(i,j,rs) = eind(rs,j,i);
+1151  euse(i,"c",r) = efd(r,i);
+1152  euse(i,c,s) = vafm(i,c,s)/sum(c.local,vafm(i,c,s)) * efd(s,i);
+1153   
+1154  *--------------------------------------------------------------------------
+1155  *       CO2 emissions coefficients:
+1156  *--------------------------------------------------------------------------
+1157   
+1158  parameter
+1159          EPSLON(*)   "Carbon dioxid emission coefficients for physical units (million metric tons / quadrillion btu)"
+1160                      /col        93.98
+1161                       gas        53.06
+1162                       oil        66
+1163                       cru        73.54/;
+1164   
+1165  *       Use those coefficients to match US total emissions:
+1166   
+1167  epslon("col") = 93.08;
+1168  epslon("gas") = 53.06;
+1169  epslon("oil") = 66;
+1170  epslon("cru") = 0;
+1171  *epslon("crude") = 73.54;
+1172  epslon("cru") = 73.54;
+1173   
+1174  *parameter epslonele;
+1175  *epslonele(en) = epslon(en);
+1176  *epslonele("cru") = epslon("crude");
+1177   
+1178  *       Convert emissions to 100 million metric tons:
+1179   
+1180  epslon(e) = epslon(e)
+1181  */100
+1182  ;
+1183  *epslonele(e) = epslonele(e)
+GAMS Rev 236  WIN-VS8 23.6.5 x86/MS Windows                                                       10/17/11 19:44:45 Page 18
+read an INTEGRATED MODEL dataset
+C o m p i l a t i o n
+
+
+1184  */100
+1185  *;
+1186   
+1187  *       WE FOLLOW BALLARD (2000) TO CALIBRATE COMPENSATED AND UNCOMPENSATED LABOR SUPPLY ELASTICITIES:
+1188   
+1189  *       (NB: Given estimates for the uncompensated and compensated supply elasticities, we calibrate the value
+1190  *       of leisure in the benchmark, and the EOS bw consumption and leisure.)
+1191   
+1192  parameter
+1193          elas_uncomp     Uncompensated labor supply elasticity /0.05/
+1194          elas_comp       Compensated labor supply elasticity /0.3/
+1195          diff_elas       Difference bw compensated and uncompensated elasticity
+1196          sigma_leiscons  Calibrated elasticity of substitution bw leisure and consumption in utility function
+1197  ;
+1198   
+1199  diff_elas = elas_comp - elas_uncomp;
+1200   
+1201  parameter
+1202          b_leis  Benchmark value of leisure
+1203  ;
+1204   
+1205  b_leis(g,rs) = diff_elas / (1-diff_elas) * (vom(g,rs)+vinvs(g,rs));
+1206   
+1207  *       Calibrate EOS bw leisure and other consumption in utility function:
+1208   
+1209  sigma_leiscons(g,rs)$b_leis(g,rs) = elas_comp / (1-diff_elas) * vfms("lab",g,rs) / b_leis(g,rs);
+1210   
+1211   
+1212   
+INCLUDE    c:\Documents and Settings\jcarone\My Documents\My Dropbox\AEA_paper\model\data\UScensus_popdata.gms
+GAMS Rev 236  WIN-VS8 23.6.5 x86/MS Windows                                                       10/17/11 19:44:45 Page 19
+Read US Census Data
+C o m p i l a t i o n
+
+
+1215   
+1216  set inc /0
+1217  10
+1218  15
+1219  25
+1220  30
+1221  50
+1222  75
+1223  100
+1224  150
+1225  /
+1226   
+1227  valueq /hhtable,poptotal/
+1228   
+1229  region /
+1230  AK   ,    CA   ,    FL   ,    NY   ,    TX   ,    NENG,    SEAS,    NEAS,    SCEN,    NCEN,    MOUN,    PACI
+1231  /
+1232  ;
+1233   
+1234  *       Read data:
+1235   
+1236  table   dataa(inc,region,valueq)
+1351  ;
+1352   
+1353  *       Relabel income groups:
+1354  parameter data_;
+1355   
+      set maphouse(h,inc) /
+      hhl.0
+      hh10.10
+      hh15.15
+      hh25.25
+      hh30.30
+      hh50.50
+      hh75.75
+      hh100.100
+      hh150.150
+      /;
+1369  *$ontext
+1370  set maphouse(h,inc) /
+1371  c.0
+****  $170
+**** LINE     49 INCLUDE     c:\Documents and Settings\jcarone\My Documents\My Dropbox\AEA_paper\model\data\UScensus_popdat
+                             a.gms
+**** LINE   1213 INPUT       c:\Documents and Settings\jcarone\My Documents\My Dropbox\AEA_paper\model\parameter_sets\0_loa
+                             ddata.gms
+1372  c.10
+****  $170
+**** LINE     50 INCLUDE     c:\Documents and Settings\jcarone\My Documents\My Dropbox\AEA_paper\model\data\UScensus_popdat
+                             a.gms
+**** LINE   1213 INPUT       c:\Documents and Settings\jcarone\My Documents\My Dropbox\AEA_paper\model\parameter_sets\0_loa
+                             ddata.gms
+1373  c.15
+****  $170
+**** LINE     51 INCLUDE     c:\Documents and Settings\jcarone\My Documents\My Dropbox\AEA_paper\model\data\UScensus_popdat
+                             a.gms
+**** LINE   1213 INPUT       c:\Documents and Settings\jcarone\My Documents\My Dropbox\AEA_paper\model\parameter_sets\0_loa
+                             ddata.gms
+1374  c.25
+****  $170
+**** LINE     52 INCLUDE     c:\Documents and Settings\jcarone\My Documents\My Dropbox\AEA_paper\model\data\UScensus_popdat
+                             a.gms
+**** LINE   1213 INPUT       c:\Documents and Settings\jcarone\My Documents\My Dropbox\AEA_paper\model\parameter_sets\0_loa
+                             ddata.gms
+1375  c.30
+****  $170
+**** LINE     53 INCLUDE     c:\Documents and Settings\jcarone\My Documents\My Dropbox\AEA_paper\model\data\UScensus_popdat
+                             a.gms
+**** LINE   1213 INPUT       c:\Documents and Settings\jcarone\My Documents\My Dropbox\AEA_paper\model\parameter_sets\0_loa
+                             ddata.gms
+1376  c.50
+****  $170
+GAMS Rev 236  WIN-VS8 23.6.5 x86/MS Windows                                                       10/17/11 19:44:45 Page 20
+Read US Census Data
+C o m p i l a t i o n
+
+
+**** LINE     54 INCLUDE     c:\Documents and Settings\jcarone\My Documents\My Dropbox\AEA_paper\model\data\UScensus_popdat
+                             a.gms
+**** LINE   1213 INPUT       c:\Documents and Settings\jcarone\My Documents\My Dropbox\AEA_paper\model\parameter_sets\0_loa
+                             ddata.gms
+1377  c.75
+****  $170
+**** LINE     55 INCLUDE     c:\Documents and Settings\jcarone\My Documents\My Dropbox\AEA_paper\model\data\UScensus_popdat
+                             a.gms
+**** LINE   1213 INPUT       c:\Documents and Settings\jcarone\My Documents\My Dropbox\AEA_paper\model\parameter_sets\0_loa
+                             ddata.gms
+1378  c.100
+****  $170
+**** LINE     56 INCLUDE     c:\Documents and Settings\jcarone\My Documents\My Dropbox\AEA_paper\model\data\UScensus_popdat
+                             a.gms
+**** LINE   1213 INPUT       c:\Documents and Settings\jcarone\My Documents\My Dropbox\AEA_paper\model\parameter_sets\0_loa
+                             ddata.gms
+1379  c.150
+****  $170
+**** LINE     57 INCLUDE     c:\Documents and Settings\jcarone\My Documents\My Dropbox\AEA_paper\model\data\UScensus_popdat
+                             a.gms
+**** LINE   1213 INPUT       c:\Documents and Settings\jcarone\My Documents\My Dropbox\AEA_paper\model\parameter_sets\0_loa
+                             ddata.gms
+1380  /;
+1381  *$offtext
+1382   
+1383  data_(region,h,valueq) = sum(maphouse(h,inc), dataa(inc,region,valueq));
+1384   
+1385   
+1386  *       Aggregate to regional target:
+1387   
+1388  parameter UScensus_hhdata(s,h,*)  Number of households or individuals by income class by region;
+1389   
+1391   
+1393   
+1395   
+1397   
+1398  set mapregion(s,region) /
+1399  CA.CA
+1400  FL.FL
+1401  NY.NY
+1402  TX.TX
+1403  NENG.NENG
+****     $170
+**** LINE     81 INCLUDE     c:\Documents and Settings\jcarone\My Documents\My Dropbox\AEA_paper\model\data\UScensus_popdat
+                             a.gms
+**** LINE   1213 INPUT       c:\Documents and Settings\jcarone\My Documents\My Dropbox\AEA_paper\model\parameter_sets\0_loa
+                             ddata.gms
+1404  SEAS.SEAS
+****     $170
+**** LINE     82 INCLUDE     c:\Documents and Settings\jcarone\My Documents\My Dropbox\AEA_paper\model\data\UScensus_popdat
+                             a.gms
+**** LINE   1213 INPUT       c:\Documents and Settings\jcarone\My Documents\My Dropbox\AEA_paper\model\parameter_sets\0_loa
+                             ddata.gms
+1405  NEAS.NEAS
+****     $170
+**** LINE     83 INCLUDE     c:\Documents and Settings\jcarone\My Documents\My Dropbox\AEA_paper\model\data\UScensus_popdat
+                             a.gms
+**** LINE   1213 INPUT       c:\Documents and Settings\jcarone\My Documents\My Dropbox\AEA_paper\model\parameter_sets\0_loa
+                             ddata.gms
+1406  SCEN.SCEN
+****     $170
+**** LINE     84 INCLUDE     c:\Documents and Settings\jcarone\My Documents\My Dropbox\AEA_paper\model\data\UScensus_popdat
+                             a.gms
+**** LINE   1213 INPUT       c:\Documents and Settings\jcarone\My Documents\My Dropbox\AEA_paper\model\parameter_sets\0_loa
+                             ddata.gms
+1407  NCEN.NCEN
+****     $170
+**** LINE     85 INCLUDE     c:\Documents and Settings\jcarone\My Documents\My Dropbox\AEA_paper\model\data\UScensus_popdat
+                             a.gms
+**** LINE   1213 INPUT       c:\Documents and Settings\jcarone\My Documents\My Dropbox\AEA_paper\model\parameter_sets\0_loa
+                             ddata.gms
+1408  MOUN.MOUN
+****     $170
+GAMS Rev 236  WIN-VS8 23.6.5 x86/MS Windows                                                       10/17/11 19:44:45 Page 21
+Read US Census Data
+C o m p i l a t i o n
+
+
+**** LINE     86 INCLUDE     c:\Documents and Settings\jcarone\My Documents\My Dropbox\AEA_paper\model\data\UScensus_popdat
+                             a.gms
+**** LINE   1213 INPUT       c:\Documents and Settings\jcarone\My Documents\My Dropbox\AEA_paper\model\parameter_sets\0_loa
+                             ddata.gms
+1409  PACI.PACI
+****     $170
+**** LINE     87 INCLUDE     c:\Documents and Settings\jcarone\My Documents\My Dropbox\AEA_paper\model\data\UScensus_popdat
+                             a.gms
+**** LINE   1213 INPUT       c:\Documents and Settings\jcarone\My Documents\My Dropbox\AEA_paper\model\parameter_sets\0_loa
+                             ddata.gms
+1410  AK.AK
+1411  /;
+1412  UScensus_hhdata(s,h,"households") = sum(mapregion(s,region),data_(region,h,"hhtable"));
+1413  UScensus_hhdata(s,h,"population") = sum(mapregion(s,region),data_(region,h,"poptotal"));
+1414   
+1415   
+1416  display uscensus_hhdata;
+1417   
+1418  parameter
+1419          popweight       Population weight (households)
+1420  ;
+1421   
+1422  popweight(s,h,"#hh") = uscensus_hhdata(s,h,"households") / sum((ss,hh),uscensus_hhdata(ss,hh,"households"));
+1423  popweight(s,h,"pop") = uscensus_hhdata(s,h,"population") / sum((ss,hh),uscensus_hhdata(ss,hh,"population"));
+1424   
+      parameter 
+      	  kapshare	"Capital income share (population adjusted)"
+      	  labshare	"Capital income share (population adjusted)"
+      	  enceshare	"Private energy consumption share (population adjusted)"
+      	  eleshare	"Electricity consumption share (population adjusted)"
+      	  gasshare	"Electricity consumption share (population adjusted)"
+      	  oilshare	"Electricity consumption share (population adjusted)"
+      ;
+       
+      *	Not adjusted by population:
+      labshare(r,h) = labor(r,h)/ sum((rr,hh),labor(rr,hh));
+      kapshare(r,h) = kapital(r,h)/ sum((rr,hh),kapital(rr,hh));
+      enceshare(r,h) = sum(e,ence(r,e,h))/ sum((rr,e,hh),ence(rr,e,hh)); 
+      eleshare(r,h) = ence(r,"ele",h)/ sum((rr,hh),ence(rr,"ele",hh));
+      gasshare(r,h) = ence(r,"gas",h)/ sum((rr,hh),ence(rr,"gas",hh));
+      oilshare(r,h) = ence(r,"oil",h)/ sum((rr,hh),ence(rr,"oil",hh));
+1443   
+1444  parameter
+1445          populationindx  Population index (2006=1)
+1446  ;
+1447   
+1448  populationindx(s,t) = population_uscensus(s,t)/population_uscensus(s,"2006");
+****                                          $141
+**** LINE    126 INCLUDE     c:\Documents and Settings\jcarone\My Documents\My Dropbox\AEA_paper\model\data\UScensus_popdat
+                             a.gms
+**** LINE   1213 INPUT       c:\Documents and Settings\jcarone\My Documents\My Dropbox\AEA_paper\model\parameter_sets\0_loa
+                             ddata.gms
+1449   
+1450  *       Adjust US Census data for population growth over time:
+1451   
+1452  parameter
+1453          uscensus_hhdatat
+1454  ;
+1455   
+1456  uscensus_hhdatat(s,h,"households",t) = uscensus_hhdata(s,h,"households")*populationindx(s,t);
+1457  uscensus_hhdatat(s,h,"population",t) = uscensus_hhdata(s,h,"population")*populationindx(s,t);
+1458   
+1459   
+1460  display populationindx;
+1461   
+1462   
+1463  parameter
+1464          govbudg0;
+1465   
+1466  govbudg0(pb,rs) = vom(pb,rs);
+1467   
+1468  parameter modelstatus;
+1469   
+GAMS Rev 236  WIN-VS8 23.6.5 x86/MS Windows                                                       10/17/11 19:44:45 Page 22
+Read US Census Data
+C o m p i l a t i o n
+
+
+1470  set     ff(i)           "Extracted fossil fuels"                /cru,gas,col/;
+1471   
+1472   
+1473  parameter depper(ff);
+1474  depper(ff) = 2;
+1475   
+1476   
+1477  *       Some capital formation definitions:
+1478   
+1479  parameter
+1480          housav(rs,t)             Household saving
+1481          newcap(rs,t)             New capital
+1482          oldcap(rs,i,t)           Old capital
+1483          oldcapg(rs,t)            Old capital employed by government
+1484          totalcap(rs,t)           Total capital;
+1485   
+1486   
+1487   
+1488  parameter vafm0,vfmsnh0,vom0, vfms0;
+1489   
+1490  vafm0(i,g,rs) = vafm(i,g,rs);
+1491   
+1492  vfmsnh0(nh,c,rs) = vfmsnh(nh,c,rs);
+1493   
+1494  vom0(g,rs) = vom(g,rs);
+1495   
+1496  vfms0(mf,c,rs) = vfms(mf,c,rs);
+1497   
+1498  parameter r_kap,r_nhkap;
+1499   
+1500  parameter resdepl  "Cumulative depletion of fossil fuel up to t";
+1501   
+1502   
+      * This is the value fo esubdusa that we calibrate using Justin's approach. The model has problems to solve with such 
+      high values.
+      ----   4841 PARAMETER esubdusa  Elasticity of substitution between local and other State imports (only valid for US s
+      tates)
+       
+                   AK          CA          FL          NY          TX        NENG        SEAS        NEAS        SCEN      
+        NCEN
+       
+      COL      32.020                                                                  73.187                             1
+      14.623
+      OIL                                     1.67849E+17      21.587                  29.839      32.988      36.739
+      ELE      29.400                              28.550                  26.956                                          
+      29.025
+      GAS                                                      29.163                                          29.345      
+      41.459
+      MAN      24.512      31.720      44.627      29.069      30.654      38.579      37.013      40.502      40.921      
+      46.180
+      SRV      27.309      20.795      20.995      21.065      21.728      21.809      22.397      21.897      24.448      
+      22.712
+      TRN      21.893      19.628      24.925      23.078                  24.769      19.827      20.290                  
+      21.264
+      AGR     108.844      29.096      44.943      43.367      34.514      49.872      34.794      34.665      37.181      
+      31.315
+      EIS      26.558      30.391      36.524      33.288      35.261      34.548      33.808      30.438      34.991      
+      37.202
+       
+        +        MOUN        PACI
+       
+      COL      64.272
+      ELE      28.848
+      MAN      45.295      36.888
+      SRV      22.361      22.146
+      TRN      22.736      22.161
+      AGR      39.497      32.885
+      EIS      37.959      35.557
+1529  *       We arbitrarily lower the calibrated elasticities:
+1530  *esubdusa(i,rs) = .5*esubdusa(i,rs);
+1531  esubdusa(i,s)$(esubdusa(i,s) > 100) = 100;
+1532  *esubdusa("gas",rs) = 5;
+1533   
+GAMS Rev 236  WIN-VS8 23.6.5 x86/MS Windows                                                       10/17/11 19:44:45 Page 23
+Read US Census Data
+C o m p i l a t i o n
+
+
+1534  parameter ele_eff2004;
+1535   
+1536  ele_eff2004(rs)$(sum(i, euse(i,"ele",rs)))
+1537                          = eprod("ele",rs)/(sum(i, euse(i,"ele",rs)));
+1538   
+1539   
+1540  parameter       bmkco2  CO2 emissions at benchmark
+1541                  refco2  CO2 emissions at benchmark,
+1542                  co2lim  Exogenous CO2 limit;
+1543   
+1544  * for GTAP regions :
+1545  bmkco2(fe,g,r)$vafm(fe,g,r) = eco2(fe,g,r);
+1546   
+1547  * for US states :
+1548  bmkco2(i,g,s) = euse(i,g,s)*epslon(i);
+1549   
+1550  * this includes crude ..
+1551  *bmkco2(i,"ele",rs) = euse(i,"ele",rs)*epslonele(i);
+1552   
+1553  *refco2(rs) = sum((i,g)$(not sameas("ele",g)) ,euse(i,g,rs)*epslon(i)) + sum(i ,euse(i,"ele",rs)*epslonele(i));
+1554  refco2(rs) = sum((i,g),bmkco2(i,g,rs));
+1555   
+1556  co2lim(rs) = 0;
+1557  *co2lim(cc) = 0.8*bmkco2(cc);
+1558   
+1559   
+1560  display refco2;
+1561   
+1562   
+1563  * Policy flags:
+1564   
+1565  parameter
+1566          rn_lst  Flag for revenue neutrality
+1567          ctradet Flag for CAT policy
+1568          carbrevft
+1569  ;
+1570   
+1571  rn_lst(rs,t) = no;
+1572  ctradet(rs,t) = no;
+1573  carbrevft(t) = no;
+1574   
+1575  parameter
+1576          emisreduc(rs,t) Emissions reductions as a fraction of BAU emissions;
+1577   
+1578  emisreduc(rs,t) = 0;
+1579   
+1580  parameter wchange,wchange_us,wchange_tot;
+1581   
+1582   
+1583   
+1584   
+1585  * define reporting parameters here :
+1586   
+1587  set limit;
+1588   
+1589  parameter byreg, bysect, byregsect, bilat;
+1590   
+1591   
+
+**** LIST OF STRAY NAMES - CHECK DECLARATIONS FOR SPURIOUS COMMAS
+**** STRAY NAME r_nhkap OF TYPE PARAM
+**** STRAY NAME wchange_us OF TYPE PARAM
+**** STRAY NAME wchange_tot OF TYPE PARAM
+**** STRAY NAME bysect OF TYPE PARAM
+**** STRAY NAME byregsect OF TYPE PARAM
+**** STRAY NAME bilat OF TYPE PARAM
+GAMS Rev 236  WIN-VS8 23.6.5 x86/MS Windows                                                       10/17/11 19:44:45 Page 24
+Read US Census Data
+Error Messages
+
+
+141  Symbol neither initialized nor assigned
+        A wild shot: You may have spurious commas in the explanatory
+        text of a declaration. Check symbol reference list.
+170  Domain violation for element
+282  Unable to open include file
+492  Symbol not in GDX
+
+**** 38 ERROR(S)   0 WARNING(S)
+GAMS Rev 236  WIN-VS8 23.6.5 x86/MS Windows                                                       10/17/11 19:44:45 Page 25
+Read US Census Data
+Include File Summary
+
+
+   SEQ   GLOBAL TYPE      PARENT   LOCAL  FILENAME
+
+     1        1 INPUT          0       0  c:\Documents and Settings\jcarone\My Documents\My Dropbox\AEA_paper\model\paramet
+                                          er_sets\0_loaddata.gms
+     2       26 IF EXIST       1      26  c:\Documents and Settings\jcarone\My Documents\My Dropbox\AEA_paper\model\paramet
+                                          er_sets\integrated.gdx
+     3       27 IF EXIST       1      27  c:\Documents and Settings\jcarone\My Documents\My Dropbox\AEA_paper\model\paramet
+                                          er_sets\integrated.gdx
+     4       27 GDXIN          1      27  c:\Documents and Settings\jcarone\My Documents\My Dropbox\AEA_paper\model\data\in
+                                          tegrated.gdx
+     5       36 IF EXIST       1      36  c:\Documents and Settings\jcarone\My Documents\My Dropbox\AEA_paper\model\paramet
+                                          er_sets\integrated.gdx
+     6       37 IF EXIST       1      37  c:\Documents and Settings\jcarone\My Documents\My Dropbox\AEA_paper\model\paramet
+                                          er_sets\integrated.gdx
+     7       37 GDXIN          1      37  c:\Documents and Settings\jcarone\My Documents\My Dropbox\AEA_paper\model\data\in
+                                          tegrated.gdx
+     8     1213 INCLUDE        1    1213  .c:\Documents and Settings\jcarone\My Documents\My Dropbox\AEA_paper\model\data\U
+                                           Scensus_popdata.gms
+     9     1239 INCLUDE        8      26  ..c:\Documents and Settings\jcarone\My Documents\My Dropbox\AEA_paper\model\data\
+                                            population_fromUScensus\pop_region_income.csv
+
+
+COMPILATION TIME     =        0.625 SECONDS     60 Mb  WIN236-236 Apr  6, 2011
+
+
+USER: Thomas F. Rutherford                           G091130:1747AP-WIN
+      ETH Zurich, CEPE - Centre for Energy Policy and Economics  DC6989
+      License for teaching and research at degree granting institutions
+
+
+**** FILE SUMMARY
+
+Input      c:\Documents and Settings\jcarone\My Documents\My Dropbox\AEA_paper\model\parameter_sets\0_loaddata.gms
+Output     c:\Documents and Settings\jcarone\My Documents\My Dropbox\AEA_paper\model\parameter_sets\0_loaddata.lst
+
+**** USER ERROR(S) ENCOUNTERED
