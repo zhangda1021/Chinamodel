@@ -1,0 +1,388 @@
+GAMS Rev 233  WEX-WEI 23.3.3 x86_64/MS Windows                                                     03/19/12 17:04:45 Page 1
+China model version 1
+C o m p i l a t i o n
+
+
+   2   
+   3  *-------------------------------------------------------------------
+   4  *       Read SAM data:
+   5  *-------------------------------------------------------------------
+   6   
+   7  set     i_   SAM rows and colums indices   /
+   8          1*30    Industries,
+   9          31*60   Commodities,
+  10          61      Labor,
+  11          62      Capital,
+  12          63      Household,
+  13          64      Central Government,
+  14          65      Local Government,
+  15          66      Production tax,
+  16          67      Commodity tax,
+  17          68      Factor tax,
+  18          69      Income tax,
+  19          70      Domestic trade,
+  20          71      Foreign trade,
+  21          72      Investment,
+  22          73      Inventory,
+  23          74      Trade margin/;
+  24   
+  25  alias (i_,j_);
+  26   
+  27  set      r China provinces      /BEJ,TAJ,HEB,SHX,NMG,LIA,JIL,HLJ,SHH,JSU,ZHJ,ANH,FUJ,JXI,SHD,HEN,HUB,HUN,GUD,GXI,HAI,
+      CHQ,SIC,GZH,YUN,SHA,GAN,NXA,QIH,XIN/;
+  28   
+  29  parameter sam(r,i_,j_)  SAM data;
+  30   
+GDXIN   c:\Users\rausch\Dropbox\China_model\model\sam5.gdx
+--- LOAD  sam = 22:sam5
+  33   
+  34  *-------------------------------------------------------------------
+  35  *       RELABEL SETS:
+  36  *-------------------------------------------------------------------
+  37   
+  38  SET     f    Factors /cap,lab,res/
+  39          g    Goods and final demands/
+  40   
+  41          AGR     "Crop cultivation,Forestry,Livestock and livestock products and Fishery"
+  42          COAL    "Coal mining and processing"
+  43          OIL     "Crude petroleum products"
+  44          MM      "Metal minerals mining"
+  45          NMM     "Non-metal minerals and other mining"
+  46          FBT     "Food, baverage and tobacco"
+  47          TXT     "Textiles"
+  48          CLO     "Wearing apparel, leather, furs, down and related products"
+  49          LOG     "Logging and transport of timber and furniture"
+  50          PAP     "Paper, printing, record medium reproduction, cultural goods, toys, sporting and recreation products"
+  51          ROIL    "Petroleum refining, coking and nuclear fuels"
+  52          CHE     "Chemical engineering"
+  53          NMP     "Non-metallic mineral products"
+  54          MSP     "Metal smelting and processing"
+  55          MP      "Metal product"
+  56          GSM     "General and special  industrial machinery and equipment"
+  57          TME     "Transport machinery and equipment"
+  58          EME     "Electric machinery and equipment"
+  59          CCE     "Communicatoin, computer and other electronic machinery and equipment"
+  60          IM      "Instruments, meters ,other measuring equipment and cultural and office equipment"
+  61          AC      "Arts and crafts products and other manufacturing  products"
+  62          WAS     "Scrap and waste"
+  63          ELEH    "Electricity production and supply, and steam and hot water production and supply"
+  64          FG      "Gas production and supply"
+  65          WT      "Water production and supply"
+  66          CON     "Construction"
+  67          TP      "Transportation and warehousing, Post"
+  68          WRHR    "Wholesale and retail trade, Hotels and restraunts"
+  69          OTH     "Other service industry"
+  70          NG      "natural gas products"
+  71   
+  72          c       "Private consumption"
+  73          cg      "Central Government"
+GAMS Rev 233  WEX-WEI 23.3.3 x86_64/MS Windows                                                     03/19/12 17:04:45 Page 2
+China model version 1
+C o m p i l a t i o n
+
+
+  74          lg      "Local Government"
+  75          i       "Investment"
+  76   
+  77          /
+  78          i(g)    "Goods and sectors" /
+  79          AGR     "Crop cultivation,Forestry,Livestock and livestock products and Fishery"
+  80          COAL    "Coal mining and processing"
+  81          OIL     "Crude petroleum products"
+  82          MM      "Metal minerals mining"
+  83          NMM     "Non-metal minerals and other mining"
+  84          FBT     "Food, baverage and tobacco"
+  85          TXT     "Textiles"
+  86          CLO     "Wearing apparel, leather, furs, down and related products"
+  87          LOG     "Logging and transport of timber and furniture"
+  88          PAP     "Paper, printing, record medium reproduction, cultural goods, toys, sporting and recreation products"
+  89          ROIL    "Petroleum refining, coking and nuclear fuels"
+  90          CHE     "Chemical engineering"
+  91          NMP     "Non-metallic mineral products"
+  92          MSP     "Metal smelting and processing"
+  93          MP      "Metal product"
+  94          GSM     "General and special  industrial machinery and equipment"
+  95          TME     "Transport machinery and equipment"
+  96          EME     "Electric machinery and equipment"
+  97          CCE     "Communicatoin, computer and other electronic machinery and equipment"
+  98          IM      "Instruments, meters ,other measuring equipment and cultural and office equipment"
+  99          AC      "Arts and crafts products and other manufacturing  products"
+ 100          WAS     "Scrap and waste"
+ 101          ELEH    "Electricity production and supply, and steam and hot water production and supply"
+ 102          FG      "Gas production and supply"
+ 103          WT      "Water production and supply"
+ 104          CON     "Construction"
+ 105          TP      "Transportation and warehousing, Post"
+ 106          WRHR    "Wholesale and retail trade, Hotels and restraunts"
+ 107          OTH     "Other service industry"
+ 108          NG      "Natural gas products"
+ 109          /
+ 110          ;
+ 111   
+ 112  alias (i,j) , (g,gg) , (r,rr);
+ 113   
+ 114  *       Map i set to new subsets:
+ 115   
+ 116  set     mapf(i_,f) /
+ 117          61.lab
+ 118          62.cap/,
+ 119          mapic(i_,i) /
+ 120          1.AGR
+ 121          2.COAL
+ 122          3.OIL
+ 123          4.MM
+ 124          5.NMM
+ 125          6.FBT
+ 126          7.TXT
+ 127          8.CLO
+ 128          9.LOG
+ 129          10.PAP
+ 130          11.ROIL
+ 131          12.CHE
+ 132          13.NMP
+ 133          14.MSP
+ 134          15.MP
+ 135          16.GSM
+ 136          17.TME
+ 137          18.EME
+ 138          19.CCE
+ 139          20.IM
+ 140          21.AC
+ 141          22.WAS
+ 142          23.ELEH
+ 143          24.FG
+ 144          25.WT
+ 145          26.CON
+ 146          27.TP
+GAMS Rev 233  WEX-WEI 23.3.3 x86_64/MS Windows                                                     03/19/12 17:04:45 Page 3
+China model version 1
+C o m p i l a t i o n
+
+
+ 147          28.WRHR
+ 148          29.OTH
+ 149          30.NG
+ 150          /
+ 151          mapjc(i_,i) /
+ 152          31.AGR
+ 153          32.COAL
+ 154          33.OIL
+ 155          34.MM
+ 156          35.NMM
+ 157          36.FBT
+ 158          37.TXT
+ 159          38.CLO
+ 160          39.LOG
+ 161          40.PAP
+ 162          41.ROIL
+ 163          42.CHE
+ 164          43.NMP
+ 165          44.MSP
+ 166          45.MP
+ 167          46.GSM
+ 168          47.TME
+ 169          48.EME
+ 170          49.CCE
+ 171          50.IM
+ 172          51.AC
+ 173          52.WAS
+ 174          53.ELEH
+ 175          54.FG
+ 176          55.WT
+ 177          56.CON
+ 178          57.TP
+ 179          58.WRHR
+ 180          59.OTH
+ 181          60.NG
+ 182          /
+ 183          gov(g) Government agents /
+ 184                  cg Central government
+ 185                  lg Local government
+ 186                  /
+ 187          maph(i_,g) /63.c/
+ 188          mapg(i_,gov) /64.cg,65.lg/
+ 189          mapinv(i_,g) /72.i/
+ 190  ;
+ 191   
+ 192  alias (gov,govv);
+ 193   
+ 194  set     trd Domestic and foreign markets /dtrd,ftrd/
+ 195          tb  Trade surplus or deficit /s,d/;
+ 196   
+ 197  *-------------------------------------------------------------------
+ 198  *       LABEL DATA:
+ 199  *-------------------------------------------------------------------
+ 200   
+ 201  parameter
+ 202          vom(g,r)       "Aggregate output"
+ 203          vom_(i,j_,r)   "Aggregate output"
+ 204          vfm(f,g,r)     "Endowments "
+ 205          evom(f,r)      "Factor supply"
+ 206          vafm(i,g,r)    "Intermediate demand for Armington goods,"
+ 207          vafm_(i,j_,r)  "Intermediate demand for Armington goods"
+ 208  * no data on vdfm and vifm
+ 209  *        vdfm(i,g,rs)    Intermediates - firms' domestic purchases at market prices,
+ 210  *        vifm(i,g,rs,trd)        Intermediates - firms' imports at market prices (ADDED DIMENSION),
+ 211          vxm(i,r,trd)   "Domestic and foreign exports "
+ 212          vim(i,r,trd)   "Aggregate imports"
+ 213          vtax(g,r)      "Output tax payments"
+ 214          vsub(g,r)      "Output subsidy payments"
+ 215          vtrdm(g,r)     "Trade margins"
+ 216   
+ 217          vinvta(i,r)     "Inventory additions (column) and deletions (row)"
+ 218          vinvtd(i,r)     "Inventory deletions (row)"
+ 219          vtrnm(i,r)      "Transportation margins"
+GAMS Rev 233  WEX-WEI 23.3.3 x86_64/MS Windows                                                     03/19/12 17:04:45 Page 4
+China model version 1
+C o m p i l a t i o n
+
+
+ 220   
+ 221          vdepr(f,r)      "Depreciation of capital"
+ 222          vtrdbal(r,trd,tb)   "Balance of payments surplus or deficit"
+ 223   
+ 224          vinvs(r,g)           "Investment demand by agent"
+ 225          vinvsn(r,g)           "Negative demand to close investement account (need to revisit)"
+ 226          vinvch(r)          "Inventory change in household account"
+ 227          vttrn(r,g,gg)   "Transfer payments between agents (from-to)"
+ 228   
+ 229          vtaxrev(r,g)    "Tax revenue for government agent"
+ 230  ;
+ 231   
+ 232   
+ 233  *       Aggregate output:
+ 234  loop(i_$(ord(i_) le 30),
+ 235  loop(j_$(ord(j_) eq 30+ord(i_)),
+ 236  vom_(i,j_,r) = sum(mapic(i_,i), sam(r,i_,j_));
+ 237  );
+ 238  );
+ 239  vom(i,r) = sum(j_,vom_(i,j_,r));
+ 240   
+ 241  *       Factor payments by sector:
+ 242  vfm(f,i,r) = sum(mapf(j_,f),sum(mapic(i_,i),sam(r,j_,i_)));
+ 243   
+ 244  *       Intermediate demands for Armington goods:
+ 245  vafm(j,i,r) =  sum((mapic(i_,i),mapjc(j_,j)),sam(r,j_,i_));
+ 246  vafm(j,"c",r) =  sum((maph(i_,g),mapjc(j_,j)),sam(r,j_,i_));
+ 247  vafm(j,"i",r) =  sum((mapinv(i_,g),mapjc(j_,j)),sam(r,j_,i_));
+ 248  vafm(j,gov,r) =  sum((mapg(i_,gov),mapjc(j_,j)),sam(r,j_,i_));
+ 249   
+ 250  *       Domestic and foreign exports and immports:
+ 251  vxm(i,r,"dtrd")  = sum(mapjc(i_,i),sam(r,i_,"70"));
+ 252  vxm(i,r,"ftrd")  = sum(mapjc(i_,i),sam(r,i_,"71"));
+ 253   
+ 254  vim(i,r,"dtrd")  = sum(mapjc(i_,i),sam(r,"70",i_));
+ 255  vim(i,r,"ftrd")  = sum(mapjc(i_,i),sam(r,"71",i_));
+ 256   
+ 257  *       Output/subsidy taxes:
+ 258  vtax(i,r) = sum(mapic(i_,i),sam(r,"66",i_));
+ 259  vsub(i,r) = sum(mapic(i_,i),sam(r,i_,"66"));
+ 260   
+ 261  *       Trade margins:
+ 262  vtrdm(i,r) = sum(mapjc(i_,i),sam(r,"74",i_));
+ 263   
+ 264  *       Inventory additions and deletions:
+ 265  vinvtd(i,r) = sum(mapjc(i_,i),sam(r,"73",i_));
+ 266  vinvta(i,r)  = sum(mapjc(i_,i),sam(r,i_,"73"));
+ 267   
+ 268  *       Transport margins:
+ 269  vtrnm(i,r) = sum(mapjc(i_,i),sam(r,i_,"74"));
+ 270   
+ 271  *       Earnings from factor supply:
+ 272  evom(f,r) = sum(mapf(j_,f),sam(r,"63",j_));
+ 273  vdepr(f,r) = sum(mapf(j_,f),sam(r,"72",j_));
+ 274   
+ 275  *       Balance of payments surplus:
+ 276  vtrdbal(r,"dtrd","s") = sam(r,"70","63");
+ 277  vtrdbal(r,"ftrd","s") = sam(r,"71","63");
+ 278  vtrdbal(r,"dtrd","d") = sam(r,"63","70");
+ 279  vtrdbal(r,"ftrd","d") = sam(r,"63","71");
+ 280   
+ 281  *       Investment demand by agent:
+ 282  vinvs(r,"c") = sam(r,"72","63");
+ 283  vinvs(r,"cg") = sam(r,"72","64");
+ 284   
+ 285  *       Inventory change in household account:
+ 286  vinvch(r) = sam(r,"73","63");
+ 287   
+ 288  *       Transfer payments;
+ 289  vttrn(r,"lg","cg") = sam(r,"64","65");
+ 290  vttrn(r,"cg","lg") = sam(r,"65","64");
+ 291  vttrn(r,"lg","c") = sam(r,"63","65");
+ 292   
+GAMS Rev 233  WEX-WEI 23.3.3 x86_64/MS Windows                                                     03/19/12 17:04:45 Page 5
+China model version 1
+C o m p i l a t i o n
+
+
+ 293  *       Tax revenue:
+ 294  vtaxrev(r,"lg") = sam(r,"65","66");
+ 295   
+ 296  *       Negative demand to close investment account (need to revisit!):
+ 297  vinvsn(r,"cg") =  sam(r,"64","71");
+ 298   
+ 299   
+ 300  *       Compute additional parameter to define model:
+ 301  vom("c",r) = sum(j,vafm(j,"c",r));
+ 302  vom(gov,r) = sum(j,vafm(j,gov,r));
+ 303  vom("i",r) = sum(j,vafm(j,"i",r));
+ 304   
+ 305  parameter
+ 306          vam     Armginton production;
+ 307   
+ 308  vam(i,r) = sum(trd,vim(i,r,trd)) + vom(i,r);
+ 309   
+ 310   
+ 311  *       Check sparsity:
+ 312   
+ 313  parameter total_supply,intermediate_demand;
+ 314  total_supply(i,r) = vom(i,r) + sum(trd,vim(i,r,trd)) + vinvtd(i,r);
+ 315  intermediate_demand(j,i,r) = vafm(j,i,r);
+ 316   
+ 317  parameter chk_vafm;
+ 318  *chk_vafm(i,g,r) = yes$(vafm(i,g,r) and (not sum(trd,vim(i,r,trd))));
+ 319  chk_vafm(i,j,r) = yes$(intermediate_demand(i,j,r) and (not total_supply(i,r)));
+ 320   
+ 321  display chk_vafm;
+EXIT c:\Users\rausch\Dropbox\China_model\model\model.gms
+GAMS Rev 233  WEX-WEI 23.3.3 x86_64/MS Windows                                                     03/19/12 17:04:45 Page 6
+China model version 1
+Include File Summary
+
+
+   SEQ   GLOBAL TYPE      PARENT   LOCAL  FILENAME
+
+     1        1 INPUT          0       0  c:\Users\rausch\Dropbox\China_model\model\model.gms
+     2       31 GDXIN          1      31  c:\Users\rausch\Dropbox\China_model\model\sam5.gdx
+     3      322 EXIT           1     322  c:\Users\rausch\Dropbox\China_model\model\model.gms
+
+
+COMPILATION TIME     =        0.000 SECONDS      3 Mb  WEX233-233 Dec 15, 2009
+GAMS Rev 233  WEX-WEI 23.3.3 x86_64/MS Windows                                                     03/19/12 17:04:45 Page 7
+China model version 1
+E x e c u t i o n
+
+
+----    321 PARAMETER chk_vafm  
+
+                ANH         FUJ         JXI         HAI         GZH
+
+NG.ROIL                                           1.000
+NG.CHE                                1.000                   1.000
+NG.GSM                                            1.000
+NG.FG         1.000       1.000       1.000       1.000
+
+
+
+EXECUTION TIME       =        0.078 SECONDS      6 Mb  WEX233-233 Dec 15, 2009
+
+
+USER: Joint Prog. On the Sci. & Policy of Global ChanG090521:1117AP-WIN
+      Massachusetts Institute of Technology                        DC11
+      License for teaching and research at degree granting institutions
+
+
+**** FILE SUMMARY
+
+Input      c:\Users\rausch\Dropbox\China_model\model\model.gms
+Output     c:\Users\rausch\Dropbox\China_model\model\model.lst

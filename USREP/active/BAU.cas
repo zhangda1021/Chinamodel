@@ -1,0 +1,33 @@
+$TITLE  USREP --- Reference scenario file
+
+$setglobal BAU BAU_yes 
+
+*--------------------------------------------------------------------------
+*	NUMBER OF PERIODS (2006=1, 2010=2, 2015=3,...,2050=10,...,2100=20)
+
+PARAMETER	nper;
+nper = 24;
+
+
+*	Allowable emissions as fraction of BAU emissions:
+emisreduc(s,t) = 0;
+
+* assign carbon-constrained cc set 
+cc(rs) = no;
+cc(rs)$(sum(t, emisreduc(rs,t))) = yes;
+
+*	Introduce permit trading:
+ctradet(rs,t)$emisreduc(rs,t) = yes;
+
+display ctradet;
+
+*	Activate revenue-neutrality through lumpsum transfers:
+rn_lst(rs,t)$emisreduc(rs,t) = yes;
+
+lshare(h,rs)$sum(t,rn_lst(rs,t)) = 1;
+
+
+*	Turn on recycling of carbon revenue:
+carbrevft(t) = 1;
+
+
