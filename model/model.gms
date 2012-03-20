@@ -37,7 +37,10 @@ $load sam=sam5
 
 SET     f    Factors /cap,lab,res/
         g    Goods and final demands/
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/master
         AGR     "Crop cultivation,Forestry,Livestock and livestock products and Fishery"
         COAL    "Coal mining and processing"
         OIL     "Crude petroleum products"
@@ -68,12 +71,18 @@ SET     f    Factors /cap,lab,res/
         WRHR    "Wholesale and retail trade, Hotels and restraunts"
         OTH     "Other service industry"
         NG      "natural gas products"
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/master
         c       "Private consumption"
         cg      "Central Government"
         lg      "Local Government"
         i       "Investment"
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/master
         /
         i(g)    "Goods and sectors" /
         AGR     "Crop cultivation,Forestry,Livestock and livestock products and Fishery"
@@ -116,6 +125,10 @@ alias (i,j) , (g,gg) , (r,rr);
 set     mapf(i_,f) /
         61.lab
         62.cap/,
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin/master
         mapic(i_,i) /
         1.AGR
         2.COAL
@@ -148,6 +161,10 @@ set     mapf(i_,f) /
         29.OTH
         30.NG
         /
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin/master
         mapjc(i_,i) /
         31.AGR
         32.COAL
@@ -180,10 +197,18 @@ set     mapf(i_,f) /
         59.OTH
         60.NG
         /
+<<<<<<< HEAD
         gov(g) Government agents /
                 cg Central government
                 lg Local government
                 /
+=======
+
+        gov(g) Government agents /
+        cg Central government
+        lg Local government
+        /
+>>>>>>> origin/master
         maph(i_,g) /63.c/
         mapg(i_,gov) /64.cg,65.lg/
         mapinv(i_,g) /72.i/
@@ -201,6 +226,7 @@ set     trd Domestic and foreign markets /dtrd,ftrd/
 parameter
         vom(g,r)       "Aggregate output"
         vom_(i,j_,r)   "Aggregate output"
+<<<<<<< HEAD
         vfm(f,g,r)     "Endowments "
         evom(f,r)      "Factor supply"
         vafm(i,g,r)    "Intermediate demand for Armington goods,"
@@ -208,12 +234,24 @@ parameter
 * no data on vdfm and vifm
 *        vdfm(i,g,rs)    Intermediates - firms' domestic purchases at market prices,
 *        vifm(i,g,rs,trd)        Intermediates - firms' imports at market prices (ADDED DIMENSION),
+=======
+
+        vfm(f,g,r)     "Endowments "
+        evom(f,r)      "Factor supply"
+
+        vafm(i,g,r)    "Intermediate demand for Armington goods,"
+        vafm_(i,j_,r)  "Intermediate demand for Armington goods"
+*	no data on vdfm and vifm
+*       vdfm(i,g,rs)    Intermediates - firms' domestic purchases at market prices,
+*       vifm(i,g,rs,trd)        Intermediates - firms' imports at market prices (ADDED DIMENSION),
+>>>>>>> origin/master
         vxm(i,r,trd)   "Domestic and foreign exports "
         vim(i,r,trd)   "Aggregate imports"
         vtax(g,r)      "Output tax payments"
         vsub(g,r)      "Output subsidy payments"
         vtrdm(g,r)     "Trade margins"
 
+<<<<<<< HEAD
         vinvta(i,r)     "Inventory additions (column) and deletions (row)"
         vinvtd(i,r)     "Inventory deletions (row)"
         vtrnm(i,r)      "Transportation margins"
@@ -227,10 +265,26 @@ parameter
         vttrn(r,g,gg)   "Transfer payments between agents (from-to)"
 
         vtaxrev(r,g)    "Tax revenue for government agent"
+=======
+        vinvta(i,r)     "Inventory additions (column)"
+        vinvtd(i,r)     "Inventory deletions (row)"
+        vtrnm(i,r)      "Transportation margins"
+
+        vdepr(f,r)		"Depreciation of capital"
+        vtrdbal(r,trd,tb)	"Balance of payments surplus or deficit"
+
+        vinvs(r,g)		"Investment demand by agent"
+        vinvsn(r,g)		"Negative demand to close investement account (need to revisit)"
+        vinvch(r)		"Inventory change in household account"
+        vttrn(r,g,gg)		"Transfer payments between agents (from-to)"
+
+        vtaxrev(r,g)		"Tax revenue for government agent"
+>>>>>>> origin/master
 ;
 
 
 *       Aggregate output:
+<<<<<<< HEAD
 loop(i_$(ord(i_) le 30),
 loop(j_$(ord(j_) eq 30+ord(i_)),
 vom_(i,j_,r) = sum(mapic(i_,i), sam(r,i_,j_));
@@ -240,6 +294,24 @@ vom(i,r) = sum(j_,vom_(i,j_,r));
 
 *       Factor payments by sector:
 vfm(f,i,r) = sum(mapf(j_,f),sum(mapic(i_,i),sam(r,j_,i_)));
+=======
+loop(i$(ord(i) le 30),
+loop(i_$(ord(i_) eq ord(i)),
+loop(j_$(ord(j_) eq 30+ord(i)),
+*loop(i_$(ord(i_) le 30),
+*loop(j_$(ord(j_) eq 30+ord(i_)),
+*vom_(i,j_,r) = sum(mapic(i_,i), sam(r,i_,j_));
+vom(i,r) = sam(r,i_,j_);
+);
+);
+);
+*vom(i,r) = sum(j_,vom_(i,j_,r));
+*display vom;
+
+*       Factor payments by sector:
+vfm(f,i,r) = sum(mapf(j_,f),sum(mapic(i_,i),sam(r,j_,i_)));
+display vfm;
+>>>>>>> origin/master
 
 *       Intermediate demands for Armington goods:
 vafm(j,i,r) =  sum((mapic(i_,i),mapjc(j_,j)),sam(r,j_,i_));
